@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Jungle Multiverse - Display</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; overflow: hidden; }
+        canvas { display: block; }
+        #overlay { position: absolute; top: 20px; left: 20px; color: #00ff88; font-family: monospace; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div id="overlay">JUNGLE MULTIVERSE: PANTALLA ACTIVA</div>
+    <canvas id="worldCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('worldCanvas');
+        const ctx = canvas.getContext('2d');
+        let stickmen = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Stickman {
+            constructor(data) {
+                this.paths = data.paths;
+                this.mood = data.mood;
+                this.name = data.userName;
+                
+                // UX: Entrada desde el borde (Efecto Wow)
+                this.x = -50; 
+                this.y = Math.random() * canvas.height;
+                
+                // Configuración de Personalidad
+                this.config = this.getConfig(data.mood);
+                this.vx = this.config.speed;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.time = 0;
+                this.collisionEffect = 0;
+            }
+
+            getConfig(mood) {
+                const base = {
+                    zen: { speed: 1, freq: 0.02, amp: 10, color: '#00ccff' },
+                    happy: { speed: 3, freq: 0.1, amp: 30, color: '#ffff00' },
+                    crazy: { speed: 6, freq: 0.3, amp: 50, color: '#ff00ff' }
+                };
+                return base[mood] || base.zen;
+            }
+
+            update(dt) {
+                this.time += dt;
+                this.x += this.vx;
+                // Movimiento senoidal según personalidad
+                this.y += Math.sin(this.time * this.config.freq) * (this.config.amp * 0.1);
+
+                // UX: Lógica Pac-Man (Screen Wrapping)
+                if (this.x > canvas.width + 50) this.x = -50;
+                if (this.x < -50) this.x = canvas.width + 50;
+                if (this.y > canvas.height + 50) this.y = -50;
+                if (this.y < -50) this.y = canvas.height + 50;
+                
+                if (this.collisionEffect > 0) this.collisionEffect -= 0.05;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Dibujar el trazo del usuario
+                ctx.beginPath();
+                ctx.strokeStyle = this.config.color;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                
+                if (this.paths.length > 0) {
+                    ctx.moveTo(this.paths[0].x - 150, this.paths[0].y - 200);
+                    this.paths.forEach(p => {
+                        ctx.lineTo(p.x - 150, p.y - 200);
+                    });
+                }
+                ctx.stroke();
+
+                // UX: Feedback de Colisión
+                if (this.collisionEffect > 0) {
+                    ctx.font = "30px Arial";
+                    ctx.fillText("⚡", 0, -50);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // Simulación de llegada de datos (Reemplazar con Firebase listener)
+        function addNewStickman(mood = 'happy') {
+            // Datos de prueba (un círculo simple como trazo)
+            const mockPaths = [];
+            for(let i=0; i<Math.PI*2; i+=0.5) mockPaths.push({x: 150 + Math.cos(i)*50, y: 200 + Math.sin(i)*50});
+            
+            stickmen.push(new Stickman({
+                paths: mockPaths,
+                mood: mood,
+                userName: "User"
+            }));
+        }
+
+        // Loop de animación con Delta Time
+        let lastTime = 0;
+        function animate(now) {
+            const dt = now - lastTime;
+            lastTime = now;
+            
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.2)'; // Estela suave
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            stickmen.forEach((s, i) => {
+                s.update(dt * 0.1);
+                s.draw();
+
+                // Detección de colisiones simple
+                stickmen.forEach((other, j) => {
+                    if (i !== j) {
+                        const dist = Math.hypot(s.x - other.x, s.y - other.y);
+                        if (dist < 40) {
+                            s.collisionEffect = 1;
+                            other.collisionEffect = 1;
+                        }
+                    }
+                });
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Agregar unos cuantos de prueba al iniciar
+        setTimeout(() => addNewStickman('zen'), 1000);
+        setTimeout(() => addNewStickman('happy'), 2000);
+        setTimeout(() => addNewStickman('crazy'), 3000);
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
