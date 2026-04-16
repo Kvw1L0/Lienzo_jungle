@@ -15,9 +15,10 @@
         .btn-send { grid-column: span 3; background: #00ff88; color: #1a1a1a; margin-top: 10px; font-size: 1.2rem; }
         .personality-btn { background: #333; color: white; border: 2px solid transparent; }
         .personality-btn.active { border-color: #00ff88; background: #444; }
-        .color-palette { display: flex; gap: 10px; margin-top: 10px; }
-        .color-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; }
     </style>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="header">
@@ -47,13 +48,27 @@
     </div>
 
     <script>
+        // --- 1. CONFIGURACIÓN DE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
+            authDomain: "jungle-multiverse.firebaseapp.com",
+            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com",
+            projectId: "jungle-multiverse",
+            storageBucket: "jungle-multiverse.firebasestorage.app",
+            messagingSenderId: "648498270563",
+            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // --- 2. LÓGICA DE DIBUJO ---
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
         let currentMood = 'zen';
         let paths = [];
 
-        // Configuración de trazo (UX: Suavizado)
         ctx.strokeStyle = '#00ff88';
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
@@ -78,7 +93,13 @@
             btn.classList.add('active');
         }
 
+        // --- 3. ENVÍO DE DATOS ---
         function sendToMultiverse() {
+            if (paths.length === 0) {
+                alert("¡Dibuja algo primero!");
+                return;
+            }
+
             const drawingData = {
                 paths: paths,
                 mood: currentMood,
@@ -86,13 +107,20 @@
                 timestamp: Date.now()
             };
             
-            console.log("Enviando a Firebase...", drawingData);
-            alert("¡Mira la pantalla gigante!");
-            // Aquí integrarías: firebase.database().ref('stickmen').push(drawingData);
-            ctx.clearRect(0,0, canvas.width, canvas.height);
-            paths = [];
+            // Enviar a la rama 'stickmen' de tu Realtime Database
+            database.ref('stickmen').push(drawingData)
+                .then(() => {
+                    alert("¡Dibujo enviado! Mira la pantalla gigante.");
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar lienzo
+                    paths = []; // Resetear trazos para el próximo
+                })
+                .catch((error) => {
+                    console.error("Error de Firebase: ", error);
+                    alert("Hubo un error al enviar tu dibujo.");
+                });
         }
 
+        // Event Listeners para Mouse y Touch
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
