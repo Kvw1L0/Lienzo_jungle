@@ -7,20 +7,37 @@
     <style>
         body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
         
-        /* Pop-up inicial */
-        #name-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #name-popup { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: #000; background-image: url('fondo.png'); background-size: cover; background-position: center;
+            z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; 
+        }
+        .overlay-dark { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: -1; }
         #name-input { padding: 15px; font-size: 1.2rem; border-radius: 8px; border: none; margin: 20px 0; width: 80%; text-align: center; }
-        #start-btn { padding: 15px 40px; background: #00ff88; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+        #start-btn { padding: 15px 40px; background: #00ff88; color: #1a1a1a; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
 
-        .header { padding: 20px; text-align: center; }
-        #canvas-container { position: relative; width: 300px; height: 400px; background: #222; border: 2px solid #333; border-radius: 15px; }
+        #custom-alert {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #00ff88; color: #1a1a1a; padding: 15px 25px; border-radius: 8px;
+            font-weight: bold; z-index: 200; display: none; opacity: 0; transition: opacity 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+        }
+
+        .header { text-align: center; margin-top: 10px; }
+        
+        /* Herramientas Jungle */
+        .tools-panel { display: flex; gap: 10px; margin-bottom: 10px; }
+        .color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #555; cursor: pointer; }
+        .color-btn.active { border-color: white; transform: scale(1.1); }
+        .acc-btn { background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.9rem; cursor: pointer;}
+
+        #canvas-container { position: relative; width: 300px; height: 350px; background: #222; border: 2px solid #333; border-radius: 15px; }
         canvas { position: absolute; top: 0; left: 0; touch-action: none; }
-        .guide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.1; display: flex; justify-content: center; align-items: center; }
-        .controls { width: 300px; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        button { padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-send { grid-column: span 3; background: #00ff88; color: #1a1a1a; margin-top: 10px; font-size: 1.2rem; }
-        .personality-btn { background: #333; color: white; border: 2px solid transparent; }
-        .personality-btn.active { border-color: #00ff88; background: #444; }
+        
+        .controls { width: 300px; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .btn-clear { background: #ff4444; color: white; }
+        .btn-send { background: #00ff88; color: #1a1a1a; }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -28,37 +45,38 @@
 </head>
 <body>
 
+    <div id="custom-alert">Mensaje</div>
+
     <div id="name-popup">
-        <h1>¡BIENVENIDO!</h1>
+        <div class="overlay-dark"></div>
+        <h1 style="color: #00ff88;">¡BIENVENIDO!</h1>
         <p>¿Cuál es tu nombre?</p>
-        <input type="text" id="name-input" placeholder="Tu nombre o apodo" maxlength="15">
+        <input type="text" id="name-input" placeholder="Tu nombre" maxlength="15">
         <button id="start-btn" onclick="saveName()">COMENZAR</button>
     </div>
 
     <div class="header">
-        <h2 id="welcome-text">JUNGLE MULTIVERSE</h2>
-        <p>Dibuja sobre la guía</p>
+        <h3 id="welcome-text" style="margin: 0; color: #00ff88;">JUNGLE MULTIVERSE</h3>
+    </div>
+
+    <div class="tools-panel">
+        <button class="color-btn active" style="background: #00ff88;" onclick="setColor('#00ff88', this)"></button>
+        <button class="color-btn" style="background: #00ccff;" onclick="setColor('#00ccff', this)"></button>
+        <button class="color-btn" style="background: #ff00ff;" onclick="setColor('#ff00ff', this)"></button>
+        <button class="color-btn" style="background: #ffff00;" onclick="setColor('#ffff00', this)"></button>
+    </div>
+    <div class="tools-panel">
+        <button class="acc-btn" onclick="addAccessory('corona')">👑 Corona</button>
+        <button class="acc-btn" onclick="addAccessory('lentes')">🕶 Lentes</button>
     </div>
 
     <div id="canvas-container">
-        <div class="guide">
-            <svg width="200" height="300" viewBox="0 0 100 150">
-                <circle cx="50" cy="30" r="15" fill="white" />
-                <line x1="50" y1="45" x2="50" y2="100" stroke="white" stroke-width="4" />
-                <line x1="50" y1="60" x2="20" y2="40" stroke="white" stroke-width="4" />
-                <line x1="50" y1="60" x2="80" y2="40" stroke="white" stroke-width="4" />
-                <line x1="50" y1="100" x2="30" y2="140" stroke="white" stroke-width="4" />
-                <line x1="50" y1="100" x2="70" y2="140" stroke="white" stroke-width="4" />
-            </svg>
-        </div>
-        <canvas id="paintCanvas" width="300" height="400"></canvas>
+        <canvas id="paintCanvas" width="300" height="350"></canvas>
     </div>
 
     <div class="controls">
-        <button class="personality-btn active" onclick="setMood('zen', this)">ZEN</button>
-        <button class="personality-btn" onclick="setMood('happy', this)">FELIZ</button>
-        <button class="personality-btn" onclick="setMood('crazy', this)">LOCO</button>
-        <button class="btn-send" onclick="sendToMultiverse()">¡ENVIAR A PANTALLA!</button>
+        <button class="btn-clear" onclick="clearCanvas()">BORRAR</button>
+        <button class="btn-send" onclick="sendToMultiverse()">ENVIAR</button>
     </div>
 
     <script>
@@ -71,34 +89,70 @@
             messagingSenderId: "648498270563",
             appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
-        
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+
+        function showMessage(msg, isError = false) {
+            const alertBox = document.getElementById('custom-alert');
+            alertBox.innerText = msg;
+            alertBox.style.background = isError ? '#ff4444' : '#00ff88';
+            alertBox.style.color = isError ? 'white' : '#1a1a1a';
+            alertBox.style.display = 'block';
+            setTimeout(() => alertBox.style.opacity = '1', 10);
+            setTimeout(() => { alertBox.style.opacity = '0'; setTimeout(() => alertBox.style.display = 'none', 300); }, 3000);
+        }
 
         let userName = "";
         function saveName() {
             const input = document.getElementById('name-input');
-            if(input.value.trim() === "") {
-                alert("Por favor, ingresa un nombre.");
-                return;
-            }
+            if(input.value.trim() === "") { showMessage("Ingresa un nombre", true); return; }
             userName = input.value.trim();
             document.getElementById('name-popup').style.display = 'none';
-            document.getElementById('welcome-text').innerText = "HOLA, " + userName.toUpperCase();
         }
 
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
-        let currentMood = 'zen';
-        let paths = [];
+        let paths = []; 
+        let currentPath = []; 
+        let currentColor = '#00ff88';
 
-        ctx.strokeStyle = '#00ff88';
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        const startDrawing = (e) => { drawing = true; ctx.beginPath(); addPoint(e); };
+        function setColor(color, btn) {
+            currentColor = color;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // Sistema de Accesorios pre-dibujados
+        const accessories = {
+            corona: [
+                [{x: 120, y: 50}, {x: 180, y: 50}, {x: 170, y: 10}, {x: 150, y: 30}, {x: 130, y: 10}, {x: 120, y: 50}]
+            ],
+            lentes: [
+                [{x: 125, y: 80}, {x: 145, y: 80}, {x: 145, y: 95}, {x: 125, y: 95}, {x: 125, y: 80}],
+                [{x: 155, y: 80}, {x: 175, y: 80}, {x: 175, y: 95}, {x: 155, y: 95}, {x: 155, y: 80}],
+                [{x: 145, y: 85}, {x: 155, y: 85}]
+            ]
+        };
+
+        function addAccessory(type) {
+            const accPaths = accessories[type];
+            // Añadir el accesorio a los trazos globales
+            accPaths.forEach(stroke => {
+                paths.push({ color: currentColor, points: stroke });
+            });
+            redrawAll();
+        }
+
+        const startDrawing = (e) => { 
+            drawing = true; currentPath = []; 
+            paths.push({ color: currentColor, points: currentPath });
+            addPoint(e); 
+        };
         const draw = (e) => { if (!drawing) return; addPoint(e); };
         const stopDrawing = () => { drawing = false; };
 
@@ -106,42 +160,37 @@
             const rect = canvas.getBoundingClientRect();
             const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
             const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            paths.push({x, y});
+            currentPath.push({x, y});
+            redrawAll();
         }
 
-        function setMood(mood, btn) {
-            currentMood = mood;
-            document.querySelectorAll('.personality-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            paths.forEach(pathObj => {
+                if(pathObj.points.length > 0) {
+                    ctx.strokeStyle = pathObj.color;
+                    ctx.beginPath();
+                    ctx.moveTo(pathObj.points[0].x, pathObj.points[0].y);
+                    pathObj.points.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.stroke();
+                }
+            });
         }
+
+        function clearCanvas() { paths = []; redrawAll(); }
 
         function sendToMultiverse() {
-            if (paths.length === 0) { alert("¡Dibuja algo primero!"); return; }
-
-            const drawingData = {
-                paths: paths,
-                mood: currentMood,
-                userName: userName,
-                timestamp: Date.now()
-            };
+            if (paths.length === 0) { showMessage("¡Dibuja algo primero!", true); return; }
+            const drawingData = { paths: paths, userName: userName, timestamp: Date.now() };
             
-            database.ref('stickmen').push(drawingData)
-                .then(() => {
-                    alert("¡Enviado! Mira la pantalla.");
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    paths = [];
-                })
-                .catch(() => alert("Error de conexión."));
+            database.ref('stickmen').push(drawingData).then(() => {
+                showMessage("¡Enviado a la pantalla!"); clearCanvas();
+            }).catch(() => showMessage("Error de conexión.", true));
         }
 
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw); canvas.addEventListener('touchend', stopDrawing);
     </script>
 </body>
 </html>
