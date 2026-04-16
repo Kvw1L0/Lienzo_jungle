@@ -6,9 +6,15 @@
     <title>Jungle - Crea tu Avatar</title>
     <style>
         body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Pop-up inicial */
+        #name-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #name-input { padding: 15px; font-size: 1.2rem; border-radius: 8px; border: none; margin: 20px 0; width: 80%; text-align: center; }
+        #start-btn { padding: 15px 40px; background: #00ff88; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+
         .header { padding: 20px; text-align: center; }
         #canvas-container { position: relative; width: 300px; height: 400px; background: #222; border: 2px solid #333; border-radius: 15px; }
-        canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: crosshair; }
+        canvas { position: absolute; top: 0; left: 0; touch-action: none; }
         .guide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.1; display: flex; justify-content: center; align-items: center; }
         .controls { width: 300px; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
         button { padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
@@ -21,8 +27,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
+
+    <div id="name-popup">
+        <h1>¡BIENVENIDO!</h1>
+        <p>¿Cuál es tu nombre?</p>
+        <input type="text" id="name-input" placeholder="Tu nombre o apodo" maxlength="15">
+        <button id="start-btn" onclick="saveName()">COMENZAR</button>
+    </div>
+
     <div class="header">
-        <h2>JUNGLE MULTIVERSE</h2>
+        <h2 id="welcome-text">JUNGLE MULTIVERSE</h2>
         <p>Dibuja sobre la guía</p>
     </div>
 
@@ -48,7 +62,6 @@
     </div>
 
     <script>
-        // --- 1. CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
             authDomain: "jungle-multiverse.firebaseapp.com",
@@ -62,7 +75,18 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // --- 2. LÓGICA DE DIBUJO ---
+        let userName = "";
+        function saveName() {
+            const input = document.getElementById('name-input');
+            if(input.value.trim() === "") {
+                alert("Por favor, ingresa un nombre.");
+                return;
+            }
+            userName = input.value.trim();
+            document.getElementById('name-popup').style.display = 'none';
+            document.getElementById('welcome-text').innerText = "HOLA, " + userName.toUpperCase();
+        }
+
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -93,34 +117,25 @@
             btn.classList.add('active');
         }
 
-        // --- 3. ENVÍO DE DATOS ---
         function sendToMultiverse() {
-            if (paths.length === 0) {
-                alert("¡Dibuja algo primero!");
-                return;
-            }
+            if (paths.length === 0) { alert("¡Dibuja algo primero!"); return; }
 
             const drawingData = {
                 paths: paths,
                 mood: currentMood,
-                userName: "Explorer_" + Math.floor(Math.random()*100),
+                userName: userName,
                 timestamp: Date.now()
             };
             
-            // Enviar a la rama 'stickmen' de tu Realtime Database
             database.ref('stickmen').push(drawingData)
                 .then(() => {
-                    alert("¡Dibujo enviado! Mira la pantalla gigante.");
-                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar lienzo
-                    paths = []; // Resetear trazos para el próximo
+                    alert("¡Enviado! Mira la pantalla.");
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    paths = [];
                 })
-                .catch((error) => {
-                    console.error("Error de Firebase: ", error);
-                    alert("Hubo un error al enviar tu dibujo.");
-                });
+                .catch(() => alert("Error de conexión."));
         }
 
-        // Event Listeners para Mouse y Touch
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
