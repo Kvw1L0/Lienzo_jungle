@@ -12,7 +12,6 @@
 </head>
 <body>
     <canvas id="worldCanvas"></canvas>
-
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
@@ -23,62 +22,65 @@
             messagingSenderId: "648498270563",
             appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
-        
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         const canvas = document.getElementById('worldCanvas');
         const ctx = canvas.getContext('2d');
         let stickmen = [];
+        let isGlobalFrozen = false; // Variable de control del ADMIN
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
 
         class Stickman {
-            constructor(data) {
+            constructor(data, id) {
+                this.id = id;
                 this.paths = data.paths || [];
-                this.mood = data.mood || 'zen';
-                this.name = data.userName || "Jungle Explorer";
+                this.name = data.userName || "Explorador";
                 
-                // Posición inicial aleatoria
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
+                // APARICIÓN ESTELAR
+                this.isEntering = true;
+                this.x = -300; // Inicia fuera de la pantalla por la izquierda
+                this.y = Math.random() * (canvas.height - 200) + 100;
+                this.targetX = 100 + Math.random() * (canvas.width / 2); // Punto de llegada
+                this.trail = []; // Rastro mágico
                 
-                this.config = this.getConfig(this.mood);
-                
-                // Movimiento aleatorio en todas las direcciones
+                // Velocidad fija post-entrada
+                this.speed = 2.5; 
                 const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * this.config.speed;
-                this.vy = Math.sin(angle) * this.config.speed;
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
                 
                 this.time = 0;
                 this.collisionEffect = 0;
             }
 
-            getConfig(mood) {
-                const base = {
-                    zen: { speed: 0.8, freq: 0.02, amp: 10, color: '#00ccff' },
-                    happy: { speed: 2.5, freq: 0.1, amp: 25, color: '#ffff00' },
-                    crazy: { speed: 5, freq: 0.3, amp: 40, color: '#ff00ff' }
-                };
-                return base[mood] || base.zen;
-            }
-
             update(dt) {
-                this.time += dt;
-                this.x += this.vx;
-                this.y += this.vy;
+                if (isGlobalFrozen) return; // Si el admin congeló todo, no se mueve
 
-                // Efecto Pac-Man (Salida por un lado, entrada por el otro)
-                const margin = 100;
-                if (this.x > canvas.width + margin) this.x = -margin;
-                if (this.x < -margin) this.x = canvas.width + margin;
-                if (this.y > canvas.height + margin) this.y = -margin;
-                if (this.y < -margin) this.y = canvas.height + margin;
+                if (this.isEntering) {
+                    // Efecto volar rápido al entrar
+                    this.x += 15;
+                    this.trail.push({x: this.x, y: this.y, color: `hsl(${Math.random() * 360}, 100%, 50%)`});
+                    if (this.trail.length > 15) this.trail.shift();
+                    
+                    if (this.x >= this.targetX) {
+                        this.isEntering = false;
+                        this.trail = []; // Limpiar rastro
+                    }
+                } else {
+                    // Movimiento normal Pac-Man
+                    this.time += dt;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    const margin = 100;
+                    if (this.x > canvas.width + margin) this.x = -margin;
+                    if (this.x < -margin) this.x = canvas.width + margin;
+                    if (this.y > canvas.height + margin) this.y = -margin;
+                    if (this.y < -margin) this.y = canvas.height + margin;
+                }
                 
                 if (this.collisionEffect > 0) this.collisionEffect -= 0.02;
             }
@@ -87,26 +89,42 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 
-                // Dibujar Trazo
-                ctx.beginPath();
-                ctx.strokeStyle = this.config.color;
+                // Dibujar Rastro Estelar
+                if (this.isEntering) {
+                    this.trail.forEach((t, i) => {
+                        ctx.beginPath();
+                        ctx.fillStyle = t.color;
+                        ctx.globalAlpha = i / this.trail.length;
+                        ctx.arc(t.x - this.x, t.y - this.y, 10, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    ctx.globalAlpha = 1;
+                }
+                
                 ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 
+                // Dibujar trazos con sus respectivos colores
                 if (this.paths.length > 0) {
-                    ctx.moveTo(this.paths[0].x - 150, this.paths[0].y - 200);
-                    this.paths.forEach(p => ctx.lineTo(p.x - 150, p.y - 200));
+                    this.paths.forEach(pathObj => {
+                        if(pathObj.points && pathObj.points.length > 0) {
+                            ctx.strokeStyle = pathObj.color || '#00ff88';
+                            ctx.beginPath();
+                            ctx.moveTo(pathObj.points[0].x - 150, pathObj.points[0].y - 175);
+                            pathObj.points.forEach(p => ctx.lineTo(p.x - 150, p.y - 175));
+                            ctx.stroke();
+                        }
+                    });
                 }
-                ctx.stroke();
 
-                // Nombre debajo del dibujo
+                // Nombre
                 ctx.fillStyle = "white";
                 ctx.font = "bold 16px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText(this.name.toUpperCase(), 0, 180);
+                ctx.fillText(this.name.toUpperCase(), 0, 200);
 
-                // Efecto Corazón en colisión
+                // Corazón
                 if (this.collisionEffect > 0) {
                     ctx.font = "50px Arial";
                     ctx.globalAlpha = this.collisionEffect;
@@ -117,11 +135,20 @@
             }
         }
 
+        // Firebase Listeners (Dibujos nuevos)
         database.ref('stickmen').on('child_added', (snapshot) => {
             const data = snapshot.val();
-            if (data && data.paths) {
-                stickmen.push(new Stickman(data));
-            }
+            if (data && data.paths) stickmen.push(new Stickman(data, snapshot.key));
+        });
+
+        // Firebase Listener (Borrar lienzo desde Admin)
+        database.ref('stickmen').on('value', (snapshot) => {
+            if (!snapshot.exists()) stickmen = []; // Vacia la pantalla
+        });
+
+        // Firebase Listener (Congelar desde Admin)
+        database.ref('gameState/frozen').on('value', (snapshot) => {
+            isGlobalFrozen = snapshot.val() || false;
         });
 
         let lastTime = performance.now();
@@ -136,20 +163,18 @@
                 s.update(dt * 0.1);
                 s.draw();
 
-                // Detección de colisiones
-                for(let j = i + 1; j < stickmen.length; j++) {
-                    const other = stickmen[j];
-                    const dist = Math.hypot(s.x - other.x, s.y - other.y);
-                    if (dist < 80) {
-                        s.collisionEffect = 1;
-                        other.collisionEffect = 1;
+                if(!isGlobalFrozen && !s.isEntering) {
+                    for(let j = i + 1; j < stickmen.length; j++) {
+                        const other = stickmen[j];
+                        if(!other.isEntering && Math.hypot(s.x - other.x, s.y - other.y) < 80) {
+                            s.collisionEffect = 1; other.collisionEffect = 1;
+                        }
                     }
                 }
             });
 
             requestAnimationFrame(animate);
         }
-
         requestAnimationFrame(animate);
     </script>
 </body>
