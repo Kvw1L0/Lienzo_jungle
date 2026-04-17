@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Jungle Multiverse - Display</title>
+    <title>Multiverso - Display</title>
     <style>
-        body { margin: 0; background: #050505; overflow: hidden; }
+        body { margin: 0; background: #0a0a0a; overflow: hidden; }
         canvas { display: block; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -14,103 +14,75 @@
     <canvas id="worldCanvas"></canvas>
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
-            authDomain: "jungle-multiverse.firebaseapp.com",
-            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com",
-            projectId: "jungle-multiverse",
-            storageBucket: "jungle-multiverse.firebasestorage.app",
-            messagingSenderId: "648498270563",
-            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         const canvas = document.getElementById('worldCanvas');
         const ctx = canvas.getContext('2d');
-        let stickmen = [];
-        let isGlobalFrozen = false; // Variable de control del ADMIN
+        let avatars = [];
+        
+        // Variables para el UX de Spotlight
+        let spotlightTimer = 0; 
+        let newestAvatarId = null;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        class Stickman {
+        class Avatar {
             constructor(data, id) {
                 this.id = id;
                 this.paths = data.paths || [];
-                this.name = data.userName || "Explorador";
+                this.name = data.userName || "Invitado";
+                this.helloTimer = 0; // Temporizador para la burbuja de cómic
                 
-                // APARICIÓN ESTELAR
-                this.isEntering = true;
-                this.x = -300; // Inicia fuera de la pantalla por la izquierda
-                this.y = Math.random() * (canvas.height - 200) + 100;
-                this.targetX = 100 + Math.random() * (canvas.width / 2); // Punto de llegada
-                this.trail = []; // Rastro mágico
+                // Movimiento inicial y aparición en centro
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
                 
-                // Velocidad fija post-entrada
-                this.speed = 2.5; 
+                // Velocidad aleatoria en cualquier dirección (Omnidireccional)
+                this.speed = Math.random() * 2 + 1.5; 
                 const angle = Math.random() * Math.PI * 2;
                 this.vx = Math.cos(angle) * this.speed;
                 this.vy = Math.sin(angle) * this.speed;
-                
-                this.time = 0;
-                this.collisionEffect = 0;
             }
 
             update(dt) {
-                if (isGlobalFrozen) return; // Si el admin congeló todo, no se mueve
+                // Movimiento constante
+                this.x += this.vx;
+                this.y += this.vy;
 
-                if (this.isEntering) {
-                    // Efecto volar rápido al entrar
-                    this.x += 15;
-                    this.trail.push({x: this.x, y: this.y, color: `hsl(${Math.random() * 360}, 100%, 50%)`});
-                    if (this.trail.length > 15) this.trail.shift();
-                    
-                    if (this.x >= this.targetX) {
-                        this.isEntering = false;
-                        this.trail = []; // Limpiar rastro
-                    }
-                } else {
-                    // Movimiento normal Pac-Man
-                    this.time += dt;
-                    this.x += this.vx;
-                    this.y += this.vy;
+                // Rebote en los bordes para mantenerlos siempre visibles
+                const size = 150; 
+                if (this.x > canvas.width - size || this.x < size) this.vx *= -1;
+                if (this.y > canvas.height - size || this.y < size) this.vy *= -1;
 
-                    const margin = 100;
-                    if (this.x > canvas.width + margin) this.x = -margin;
-                    if (this.x < -margin) this.x = canvas.width + margin;
-                    if (this.y > canvas.height + margin) this.y = -margin;
-                    if (this.y < -margin) this.y = canvas.height + margin;
-                }
-                
-                if (this.collisionEffect > 0) this.collisionEffect -= 0.02;
+                // Reducir temporizador de la burbuja "Hola"
+                if(this.helloTimer > 0) this.helloTimer -= dt * 0.1;
             }
 
-            draw() {
+            draw(globalSpotlightActivo) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 
-                // Dibujar Rastro Estelar
-                if (this.isEntering) {
-                    this.trail.forEach((t, i) => {
-                        ctx.beginPath();
-                        ctx.fillStyle = t.color;
-                        ctx.globalAlpha = i / this.trail.length;
-                        ctx.arc(t.x - this.x, t.y - this.y, 10, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                    ctx.globalAlpha = 1;
+                // Lógica UX Spotlight: Si hay alguien nuevo y no soy yo, me hago transparente
+                if (globalSpotlightActivo && this.id !== newestAvatarId) {
+                    ctx.globalAlpha = 0.2; // Rostros antiguos se difuminan
+                } else if (globalSpotlightActivo && this.id === newestAvatarId) {
+                    ctx.shadowBlur = 30; // El rostro nuevo brilla
+                    ctx.shadowColor = "white";
                 }
                 
-                ctx.lineWidth = 4;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 
-                // Dibujar trazos con sus respectivos colores
+                // Dibujar el rostro
                 if (this.paths.length > 0) {
                     this.paths.forEach(pathObj => {
                         if(pathObj.points && pathObj.points.length > 0) {
-                            ctx.strokeStyle = pathObj.color || '#00ff88';
+                            ctx.strokeStyle = pathObj.color || '#EC0000';
                             ctx.beginPath();
+                            // Centrado ajustado al tamaño del canvas móvil
                             ctx.moveTo(pathObj.points[0].x - 150, pathObj.points[0].y - 175);
                             pathObj.points.forEach(p => ctx.lineTo(p.x - 150, p.y - 175));
                             ctx.stroke();
@@ -118,37 +90,55 @@
                     });
                 }
 
-                // Nombre
+                ctx.shadowBlur = 0; // Quitar brillo para el texto
                 ctx.fillStyle = "white";
-                ctx.font = "bold 16px Arial";
+                ctx.font = "bold 18px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText(this.name.toUpperCase(), 0, 200);
+                ctx.fillText(this.name.toUpperCase(), 0, 190);
 
-                // Corazón
-                if (this.collisionEffect > 0) {
-                    ctx.font = "50px Arial";
-                    ctx.globalAlpha = this.collisionEffect;
-                    ctx.fillText("❤️", 0, -50);
+                // Dibujar Burbuja de Cómic "HOLA"
+                if (this.helloTimer > 0) {
+                    ctx.fillStyle = "white";
+                    ctx.beginPath();
+                    ctx.roundRect(50, -220, 100, 50, 10);
+                    ctx.fill();
+                    
+                    // Triángulo de la burbuja
+                    ctx.beginPath();
+                    ctx.moveTo(60, -170);
+                    ctx.lineTo(80, -170);
+                    ctx.lineTo(50, -140);
+                    ctx.fill();
+
+                    ctx.fillStyle = "black";
+                    ctx.font = "bold 20px Arial";
+                    ctx.fillText("¡HOLA!", 100, -185);
                 }
 
                 ctx.restore();
             }
         }
 
-        // Firebase Listeners (Dibujos nuevos)
-        database.ref('stickmen').on('child_added', (snapshot) => {
+        // Listener: Dibujo Nuevo
+        database.ref('avatars').on('child_added', (snapshot) => {
             const data = snapshot.val();
-            if (data && data.paths) stickmen.push(new Stickman(data, snapshot.key));
+            if (data && data.paths) {
+                const newAvatar = new Avatar(data, snapshot.key);
+                avatars.push(newAvatar);
+                
+                // Activar Spotlight UX por ~4 segundos
+                spotlightTimer = 400; 
+                newestAvatarId = snapshot.key;
+            }
         });
 
-        // Firebase Listener (Borrar lienzo desde Admin)
-        database.ref('stickmen').on('value', (snapshot) => {
-            if (!snapshot.exists()) stickmen = []; // Vacia la pantalla
-        });
-
-        // Firebase Listener (Congelar desde Admin)
-        database.ref('gameState/frozen').on('value', (snapshot) => {
-            isGlobalFrozen = snapshot.val() || false;
+        // Listener: Botón "Hola" presionado en móvil
+        database.ref('avatars').on('child_changed', (snapshot) => {
+            const data = snapshot.val();
+            const avatar = avatars.find(a => a.id === snapshot.key);
+            if (avatar && data.sayHello) {
+                avatar.helloTimer = 300; // Activa la burbuja unos 3 segundos
+            }
         });
 
         let lastTime = performance.now();
@@ -156,21 +146,17 @@
             const dt = now - lastTime;
             lastTime = now;
             
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; 
+            // Fondo con estela suave
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            stickmen.forEach((s, i) => {
-                s.update(dt * 0.1);
-                s.draw();
+            if (spotlightTimer > 0) spotlightTimer -= dt * 0.1;
 
-                if(!isGlobalFrozen && !s.isEntering) {
-                    for(let j = i + 1; j < stickmen.length; j++) {
-                        const other = stickmen[j];
-                        if(!other.isEntering && Math.hypot(s.x - other.x, s.y - other.y) < 80) {
-                            s.collisionEffect = 1; other.collisionEffect = 1;
-                        }
-                    }
-                }
+            const isSpotlightActive = spotlightTimer > 0;
+
+            avatars.forEach(a => {
+                a.update(dt);
+                a.draw(isSpotlightActive);
             });
 
             requestAnimationFrame(animate);
