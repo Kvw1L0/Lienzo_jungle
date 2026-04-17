@@ -3,123 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jungle - Crea tu Avatar</title>
+    <title>Crea tu Avatar</title>
     <style>
         body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
         
-        #name-popup { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: #000; background-image: url('fondo.png'); background-size: cover; background-position: center;
-            z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; 
-        }
-        .overlay-dark { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: -1; }
+        #name-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         #name-input { padding: 15px; font-size: 1.2rem; border-radius: 8px; border: none; margin: 20px 0; width: 80%; text-align: center; }
-        #start-btn { padding: 15px 40px; background: #00ff88; color: #1a1a1a; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
-
-        #custom-alert {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #00ff88; color: #1a1a1a; padding: 15px 25px; border-radius: 8px;
-            font-weight: bold; z-index: 200; display: none; opacity: 0; transition: opacity 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
-        }
+        #start-btn { padding: 15px 40px; background: #EC0000; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
 
         .header { text-align: center; margin-top: 10px; }
         
-        /* Herramientas Jungle */
-        .tools-panel { display: flex; gap: 10px; margin-bottom: 10px; }
-        .color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #555; cursor: pointer; }
-        .color-btn.active { border-color: white; transform: scale(1.1); }
-        .acc-btn { background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.9rem; cursor: pointer;}
+        /* Paleta Corporativa Extraída de la Imagen */
+        .tools-panel { display: flex; gap: 15px; margin-bottom: 15px; justify-content: center; }
+        .color-btn { width: 35px; height: 35px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: 0.2s; }
+        .color-btn.active { border-color: white; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
 
-        #canvas-container { position: relative; width: 300px; height: 350px; background: #222; border: 2px solid #333; border-radius: 15px; }
+        /* Contenedores de Vistas */
+        #draw-view { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        #souvenir-view { display: none; flex-direction: column; align-items: center; width: 100%; margin-top: 20px; }
+        
+        #canvas-container { position: relative; width: 300px; height: 350px; background: #222; border: 2px solid #333; border-radius: 15px; overflow: hidden; }
         canvas { position: absolute; top: 0; left: 0; touch-action: none; }
         
-        .controls { width: 300px; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        /* Nueva Silueta de Rostro */
+        .guide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.15; display: flex; justify-content: center; align-items: center; }
+        
+        .controls { width: 300px; margin-top: 15px; display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
         button { padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
-        .btn-clear { background: #ff4444; color: white; }
-        .btn-send { background: #00ff88; color: #1a1a1a; }
-    </style>
+        .btn-clear { background: #444; color: white; }
+        .btn-send { background: #EC0000; color: white; }
 
+        /* Vista Souvenir */
+        #souvenir-img { width: 250px; height: auto; border-radius: 15px; background: #222; border: 2px solid #EC0000; margin-bottom: 20px; }
+        .btn-hello { background: #4EB1B3; color: white; width: 250px; padding: 20px; font-size: 1.5rem; border-radius: 50px; animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
-    <div id="custom-alert">Mensaje</div>
-
     <div id="name-popup">
-        <div class="overlay-dark"></div>
-        <h1 style="color: #00ff88;">¡BIENVENIDO!</h1>
-        <p>¿Cuál es tu nombre?</p>
+        <h1 style="color: #EC0000;">¡BIENVENIDO!</h1>
+        <p>¿Cómo te llamas?</p>
         <input type="text" id="name-input" placeholder="Tu nombre" maxlength="15">
         <button id="start-btn" onclick="saveName()">COMENZAR</button>
     </div>
 
     <div class="header">
-        <h3 id="welcome-text" style="margin: 0; color: #00ff88;">JUNGLE MULTIVERSE</h3>
+        <h3 id="welcome-text" style="margin: 0; color: #EC0000;">DIBUJA TU ROSTRO</h3>
     </div>
 
-    <div class="tools-panel">
-        <button class="color-btn active" style="background: #00ff88;" onclick="setColor('#00ff88', this)"></button>
-        <button class="color-btn" style="background: #00ccff;" onclick="setColor('#00ccff', this)"></button>
-        <button class="color-btn" style="background: #ff00ff;" onclick="setColor('#ff00ff', this)"></button>
-        <button class="color-btn" style="background: #ffff00;" onclick="setColor('#ffff00', this)"></button>
-    </div>
-    <div class="tools-panel">
-        <button class="acc-btn" onclick="addAccessory('corona')">👑 Corona</button>
-        <button class="acc-btn" onclick="addAccessory('lentes')">🕶 Lentes</button>
+    <div id="draw-view">
+        <div class="tools-panel">
+            <button class="color-btn active" style="background: #EC0000;" onclick="setColor('#EC0000', this)"></button> <button class="color-btn" style="background: #E89C31;" onclick="setColor('#E89C31', this)"></button> <button class="color-btn" style="background: #4EB1B3;" onclick="setColor('#4EB1B3', this)"></button> <button class="color-btn" style="background: #A24281;" onclick="setColor('#A24281', this)"></button> <button class="color-btn" style="background: #4EA180;" onclick="setColor('#4EA180', this)"></button> </div>
+
+        <div id="canvas-container">
+            <div class="guide">
+                <svg width="250" height="300" viewBox="0 0 100 120">
+                    <ellipse cx="50" cy="55" rx="35" ry="50" fill="none" stroke="white" stroke-width="2" stroke-dasharray="4,4"/>
+                    <circle cx="35" cy="45" r="4" fill="white"/>
+                    <circle cx="65" cy="45" r="4" fill="white"/>
+                    <path d="M 40 80 Q 50 90 60 80" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <canvas id="paintCanvas" width="300" height="350"></canvas>
+        </div>
+
+        <div class="controls">
+            <button class="btn-clear" onclick="clearCanvas()">BORRAR</button>
+            <button class="btn-send" onclick="sendToMultiverse()">ENVIAR</button>
+        </div>
     </div>
 
-    <div id="canvas-container">
-        <canvas id="paintCanvas" width="300" height="350"></canvas>
-    </div>
-
-    <div class="controls">
-        <button class="btn-clear" onclick="clearCanvas()">BORRAR</button>
-        <button class="btn-send" onclick="sendToMultiverse()">ENVIAR</button>
+    <div id="souvenir-view">
+        <p style="color: #4EB1B3; font-weight: bold; margin-top: 0;">¡TU AVATAR ESTÁ EN LA PANTALLA!</p>
+        <img id="souvenir-img" src="" alt="Tu dibujo">
+        <button class="btn-hello" onclick="sayHello()">¡DI HOLA!</button>
+        <button style="background: transparent; border: 1px solid #555; color: #aaa; margin-top: 15px;" onclick="resetApp()">Dibujar otro</button>
     </div>
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
-            authDomain: "jungle-multiverse.firebaseapp.com",
-            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com",
-            projectId: "jungle-multiverse",
-            storageBucket: "jungle-multiverse.firebasestorage.app",
-            messagingSenderId: "648498270563",
-            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        function showMessage(msg, isError = false) {
-            const alertBox = document.getElementById('custom-alert');
-            alertBox.innerText = msg;
-            alertBox.style.background = isError ? '#ff4444' : '#00ff88';
-            alertBox.style.color = isError ? 'white' : '#1a1a1a';
-            alertBox.style.display = 'block';
-            setTimeout(() => alertBox.style.opacity = '1', 10);
-            setTimeout(() => { alertBox.style.opacity = '0'; setTimeout(() => alertBox.style.display = 'none', 300); }, 3000);
-        }
-
         let userName = "";
+        let myAvatarRef = null; // Guardará la referencia exacta de este usuario
+
         function saveName() {
             const input = document.getElementById('name-input');
-            if(input.value.trim() === "") { showMessage("Ingresa un nombre", true); return; }
+            if(input.value.trim() === "") return;
             userName = input.value.trim();
             document.getElementById('name-popup').style.display = 'none';
         }
 
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
-        let drawing = false;
-        let paths = []; 
-        let currentPath = []; 
-        let currentColor = '#00ff88';
+        let drawing = false; let paths = []; let currentPath = []; let currentColor = '#EC0000';
 
-        ctx.lineWidth = 5;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
         function setColor(color, btn) {
             currentColor = color;
@@ -127,32 +113,7 @@
             btn.classList.add('active');
         }
 
-        // Sistema de Accesorios pre-dibujados
-        const accessories = {
-            corona: [
-                [{x: 120, y: 50}, {x: 180, y: 50}, {x: 170, y: 10}, {x: 150, y: 30}, {x: 130, y: 10}, {x: 120, y: 50}]
-            ],
-            lentes: [
-                [{x: 125, y: 80}, {x: 145, y: 80}, {x: 145, y: 95}, {x: 125, y: 95}, {x: 125, y: 80}],
-                [{x: 155, y: 80}, {x: 175, y: 80}, {x: 175, y: 95}, {x: 155, y: 95}, {x: 155, y: 80}],
-                [{x: 145, y: 85}, {x: 155, y: 85}]
-            ]
-        };
-
-        function addAccessory(type) {
-            const accPaths = accessories[type];
-            // Añadir el accesorio a los trazos globales
-            accPaths.forEach(stroke => {
-                paths.push({ color: currentColor, points: stroke });
-            });
-            redrawAll();
-        }
-
-        const startDrawing = (e) => { 
-            drawing = true; currentPath = []; 
-            paths.push({ color: currentColor, points: currentPath });
-            addPoint(e); 
-        };
+        const startDrawing = (e) => { drawing = true; currentPath = []; paths.push({ color: currentColor, points: currentPath }); addPoint(e); };
         const draw = (e) => { if (!drawing) return; addPoint(e); };
         const stopDrawing = () => { drawing = false; };
 
@@ -168,8 +129,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             paths.forEach(pathObj => {
                 if(pathObj.points.length > 0) {
-                    ctx.strokeStyle = pathObj.color;
-                    ctx.beginPath();
+                    ctx.strokeStyle = pathObj.color; ctx.beginPath();
                     ctx.moveTo(pathObj.points[0].x, pathObj.points[0].y);
                     pathObj.points.forEach(p => ctx.lineTo(p.x, p.y));
                     ctx.stroke();
@@ -180,12 +140,40 @@
         function clearCanvas() { paths = []; redrawAll(); }
 
         function sendToMultiverse() {
-            if (paths.length === 0) { showMessage("¡Dibuja algo primero!", true); return; }
-            const drawingData = { paths: paths, userName: userName, timestamp: Date.now() };
+            if (paths.length === 0) return;
             
-            database.ref('stickmen').push(drawingData).then(() => {
-                showMessage("¡Enviado a la pantalla!"); clearCanvas();
-            }).catch(() => showMessage("Error de conexión.", true));
+            // UX: Vibración táctil si el dispositivo lo soporta
+            if (navigator.vibrate) navigator.vibrate(200);
+
+            const drawingData = { paths: paths, userName: userName, timestamp: Date.now(), sayHello: 0 };
+            
+            // Creamos un nodo único y lo guardamos
+            myAvatarRef = database.ref('avatars').push();
+            myAvatarRef.set(drawingData).then(() => {
+                // Generar imagen estática para el souvenir
+                document.getElementById('souvenir-img').src = canvas.toDataURL();
+                
+                // Cambiar de vista
+                document.getElementById('draw-view').style.display = 'none';
+                document.getElementById('souvenir-view').style.display = 'flex';
+                document.getElementById('welcome-text').innerText = userName.toUpperCase();
+            });
+        }
+
+        function sayHello() {
+            if(myAvatarRef) {
+                // UX: Vibración corta al decir hola
+                if (navigator.vibrate) navigator.vibrate([50, 50]);
+                // Actualiza el nodo en tiempo real para que la pantalla lo detecte
+                myAvatarRef.update({ sayHello: Date.now() });
+            }
+        }
+
+        function resetApp() {
+            clearCanvas();
+            document.getElementById('souvenir-view').style.display = 'none';
+            document.getElementById('draw-view').style.display = 'flex';
+            document.getElementById('welcome-text').innerText = "DIBUJA TU ROSTRO";
         }
 
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
