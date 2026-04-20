@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jungle - Admin Panel</title>
+    <title>Admin - Multiverso</title>
     <style>
         body { margin: 0; background: #0a0a0a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); text-align: center; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .panel { background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); text-align: center; width: 90%; max-width: 400px; }
         h1 { color: #EC0000; margin-top: 0; }
-        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: transform 0.1s, filter 0.2s; }
+        .version { color: #888; font-size: 0.8rem; margin-bottom: 20px; }
+        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
         button:active { transform: scale(0.95); }
         
         .btn-clear { background: #EC0000; color: white; }
@@ -22,6 +23,7 @@
 <body>
     <div class="panel">
         <h1>PANEL ADMIN</h1>
+        <div class="version">VERSIÓN 2.0 ACTUALIZADA</div>
         
         <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODO</button>
         <button class="btn-freeze" id="btn-freeze" onclick="toggleState('frozen')">❄️ CONGELAR</button>
@@ -44,7 +46,6 @@
 
         let currentState = { frozen: false, formation: false, spinAll: false };
 
-        // Escuchar el estado para cambiar el texto de los botones
         database.ref('gameState').on('value', (snap) => {
             if(snap.exists()) {
                 currentState = { ...currentState, ...snap.val() };
@@ -55,7 +56,7 @@
         });
 
         function limpiarPantalla() {
-            if(confirm("¿Estás seguro de borrar todos los dibujos permanentemente?")) {
+            if(confirm("¿Seguro que quieres borrar todos los dibujos?")) {
                 database.ref('avatars').remove();
                 database.ref('gameState').set({ frozen: false, formation: false, spinAll: false });
             }
