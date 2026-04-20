@@ -1,3 +1,12 @@
+¡Excelente hallazgo y te pido disculpas por el dolor de cabeza! Revisando el código exhaustivamente, encontré exactamente al culpable.
+
+El problema es un conflicto con los eventos táctiles globales. En la lógica del botón "GIRAR", le dijimos al navegador que detectara cuando levantabas el dedo de la pantalla (`window.addEventListener('touchend', stopSpin);`). El error crítico fue que dentro de esa función dejamos un `e.preventDefault();`. Al estar asignado a toda la ventana (`window`), **esta línea estaba cancelando y bloqueando todos los toques y clics en toda la aplicación móvil**, impidiendo que pudieras seleccionar el campo de texto o presionar "Comenzar".
+
+Además, agregué una pequeña alerta en la función `saveName()` para que, si el usuario presiona "Comenzar" sin haber escrito nada, la app le avise en lugar de quedarse congelada.
+
+Aquí tienes el archivo **`index.html`** completamente corregido y libre de bloqueos. Reemplaza tu código actual con este:
+
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -35,7 +44,7 @@
             margin-top: 15px;
         }
         
-        /* CORRECCIÓN: Campo de Nombre Visible y Seleccionable */
+        /* Popup Inicial */
         #name-popup { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); 
@@ -58,7 +67,7 @@
             text-align: center; 
             outline: none; 
             background: white; 
-            color: #1a1a1a; /* Texto oscuro para legibilidad */
+            color: #1a1a1a; 
             font-weight: bold;
             -webkit-user-select: auto;
             user-select: auto;
@@ -180,7 +189,13 @@
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
+            authDomain: "jungle-multiverse.firebaseapp.com", 
+            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", 
+            projectId: "jungle-multiverse", 
+            storageBucket: "jungle-multiverse.firebasestorage.app", 
+            messagingSenderId: "648498270563", 
+            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -189,7 +204,10 @@
 
         function saveName() {
             const input = document.getElementById('name-input');
-            if(input.value.trim() === "") return;
+            if(input.value.trim() === "") {
+                alert("Por favor, ingresa tu apodo para comenzar.");
+                return;
+            }
             userName = input.value.trim();
             document.getElementById('name-popup').style.display = 'none';
         }
@@ -238,7 +256,10 @@
         function clearCanvas() { paths = []; redrawAll(); document.getElementById('drawing-guide').style.opacity = '0.4'; }
 
         function sendToMultiverse() {
-            if (paths.length === 0) return;
+            if (paths.length === 0) {
+                alert("¡Dibuja algo primero!");
+                return;
+            }
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
 
             const drawingData = { 
@@ -264,11 +285,21 @@
         }
 
         const btnSpin = document.getElementById('btn-spin');
-        const startSpin = (e) => { e.preventDefault(); if(myAvatarRef) myAvatarRef.update({ isSpinning: true }); };
-        const stopSpin = (e) => { e.preventDefault(); if(myAvatarRef) myAvatarRef.update({ isSpinning: false }); };
         
-        btnSpin.addEventListener('mousedown', startSpin); btnSpin.addEventListener('touchstart', startSpin);
-        window.addEventListener('mouseup', stopSpin); window.addEventListener('touchend', stopSpin);
+        // CORRECCIÓN CRÍTICA DE UX: Prevenir bloqueo de toques globales
+        const startSpin = (e) => { 
+            e.preventDefault(); 
+            if(myAvatarRef) myAvatarRef.update({ isSpinning: true }); 
+        };
+        const stopSpin = (e) => { 
+            // ELIMINADO e.preventDefault() global aquí para que la pantalla detecte toques
+            if(myAvatarRef) myAvatarRef.update({ isSpinning: false }); 
+        };
+        
+        btnSpin.addEventListener('mousedown', startSpin); 
+        btnSpin.addEventListener('touchstart', startSpin, { passive: false });
+        window.addEventListener('mouseup', stopSpin); 
+        window.addEventListener('touchend', stopSpin);
 
         function toggleMixColor() {
             if(myAvatarRef) {
@@ -290,3 +321,4 @@
     </script>
 </body>
 </html>
+```
