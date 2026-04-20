@@ -10,6 +10,7 @@
         h1 { color: #EC0000; margin-top: 0; }
         button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: transform 0.1s, filter 0.2s; }
         button:active { transform: scale(0.95); }
+        
         .btn-clear { background: #EC0000; color: white; }
         .btn-freeze { background: #4EB1B3; color: white; }
         .btn-formacion { background: #E89C31; color: white; }
@@ -21,6 +22,7 @@
 <body>
     <div class="panel">
         <h1>PANEL ADMIN</h1>
+        
         <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODO</button>
         <button class="btn-freeze" id="btn-freeze" onclick="toggleState('frozen')">❄️ CONGELAR</button>
         <button class="btn-formacion" id="btn-form" onclick="toggleState('formation')">📐 FORMACIÓN</button>
@@ -29,14 +31,20 @@
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
+            authDomain: "jungle-multiverse.firebaseapp.com", 
+            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", 
+            projectId: "jungle-multiverse", 
+            storageBucket: "jungle-multiverse.firebasestorage.app", 
+            messagingSenderId: "648498270563", 
+            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         let currentState = { frozen: false, formation: false, spinAll: false };
 
-        // Escuchar el estado para mantener los botones visualmente correctos
+        // Escuchar el estado para cambiar el texto de los botones
         database.ref('gameState').on('value', (snap) => {
             if(snap.exists()) {
                 currentState = { ...currentState, ...snap.val() };
@@ -47,7 +55,7 @@
         });
 
         function limpiarPantalla() {
-            if(confirm("¿Borrar todos los dibujos permanentemente?")) {
+            if(confirm("¿Estás seguro de borrar todos los dibujos permanentemente?")) {
                 database.ref('avatars').remove();
                 database.ref('gameState').set({ frozen: false, formation: false, spinAll: false });
             }
