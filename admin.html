@@ -5,64 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jungle - Admin Panel</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        .panel { background: #222; padding: 30px; border-radius: 15px; border: 2px solid #333; text-align: center; width: 80%; max-width: 400px; }
-        h1 { color: #00ff88; margin-top: 0; }
-        button { width: 100%; padding: 15px; margin: 10px 0; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .btn-clear { background: #ff4444; color: white; }
-        .btn-clear:active { background: #cc0000; }
-        .btn-freeze { background: #00ccff; color: #1a1a1a; }
-        .btn-unfreeze { background: #ffff00; color: #1a1a1a; display: none; }
+        body { margin: 0; background: #0a0a0a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); text-align: center; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #EC0000; margin-top: 0; }
+        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: transform 0.1s, filter 0.2s; }
+        button:active { transform: scale(0.95); }
+        .btn-clear { background: #EC0000; color: white; }
+        .btn-freeze { background: #4EB1B3; color: white; }
+        .btn-formacion { background: #E89C31; color: white; }
+        .btn-girar { background: #A24281; color: white; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
-
     <div class="panel">
         <h1>PANEL ADMIN</h1>
-        <p>Controla la pantalla gigante en tiempo real.</p>
-
-        <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODOS LOS DIBUJOS</button>
-        <button id="btn-freeze" class="btn-freeze" onclick="toggleCongelar(true)">❄️ CONGELAR PERSONAJES</button>
-        <button id="btn-unfreeze" class="btn-unfreeze" onclick="toggleCongelar(false)">▶️ DESCONGELAR PERSONAJES</button>
+        <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODO</button>
+        <button class="btn-freeze" id="btn-freeze" onclick="toggleState('frozen')">❄️ CONGELAR</button>
+        <button class="btn-formacion" id="btn-form" onclick="toggleState('formation')">📐 FORMACIÓN</button>
+        <button class="btn-girar" id="btn-spin" onclick="toggleState('spinAll')">🌪️ GIRAR TODOS</button>
     </div>
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc",
-            authDomain: "jungle-multiverse.firebaseapp.com",
-            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com",
-            projectId: "jungle-multiverse",
-            storageBucket: "jungle-multiverse.firebasestorage.app",
-            messagingSenderId: "648498270563",
-            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        let currentState = { frozen: false, formation: false, spinAll: false };
+
+        // Escuchar el estado para mantener los botones visualmente correctos
+        database.ref('gameState').on('value', (snap) => {
+            if(snap.exists()) {
+                currentState = { ...currentState, ...snap.val() };
+                document.getElementById('btn-freeze').innerText = currentState.frozen ? "▶️ DESCONGELAR" : "❄️ CONGELAR";
+                document.getElementById('btn-form').innerText = currentState.formation ? "✖️ ROMPER FORMACIÓN" : "📐 FORMACIÓN";
+                document.getElementById('btn-spin').innerText = currentState.spinAll ? "🛑 DETENER GIRO" : "🌪️ GIRAR TODOS";
+            }
+        });
+
         function limpiarPantalla() {
-            if(confirm("¿Estás seguro de eliminar todos los dibujos de la pantalla? Esto no se puede deshacer.")) {
-                database.ref('stickmen').remove()
-                    .then(() => alert("Pantalla limpiada con éxito."))
-                    .catch(() => alert("Hubo un error de conexión."));
+            if(confirm("¿Borrar todos los dibujos permanentemente?")) {
+                database.ref('avatars').remove();
+                database.ref('gameState').set({ frozen: false, formation: false, spinAll: false });
             }
         }
 
-        function toggleCongelar(estado) {
-            database.ref('gameState').update({ frozen: estado })
-                .then(() => {
-                    document.getElementById('btn-freeze').style.display = estado ? 'none' : 'block';
-                    document.getElementById('btn-unfreeze').style.display = estado ? 'block' : 'none';
-                });
+        function toggleState(key) {
+            database.ref('gameState').update({ [key]: !currentState[key] });
         }
-
-        // Mantener los botones sincronizados con la base de datos si entras desde otro dispositivo
-        database.ref('gameState/frozen').on('value', (snapshot) => {
-            const isFrozen = snapshot.val() || false;
-            document.getElementById('btn-freeze').style.display = isFrozen ? 'none' : 'block';
-            document.getElementById('btn-unfreeze').style.display = isFrozen ? 'block' : 'none';
-        });
     </script>
 </body>
 </html>
