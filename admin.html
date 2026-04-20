@@ -2,28 +2,59 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Jungle Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jungle - Admin Panel</title>
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .panel { background: #222; padding: 30px; border-radius: 20px; width: 300px; text-align: center; }
-        button { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        body { margin: 0; background: #0a0a0a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .panel { background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); text-align: center; width: 90%; max-width: 400px; }
+        h1 { color: #EC0000; margin-top: 0; margin-bottom: 25px; }
+        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
+        
+        .btn-clear { background: #EC0000; color: white; }
+        .btn-freeze { background: #4EB1B3; color: white; }
+        .btn-formacion { background: #E89C31; color: white; }
+        .btn-girar { background: #A24281; color: white; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="panel">
-        <h1 style="color:#EC0000">ADMIN V2</h1>
-        <button style="background:#EC0000" onclick="resetAll()">BORRAR TODO</button>
-        <button style="background:#4EB1B3" onclick="toggle('frozen')">CONGELAR/PLAY</button>
-        <button style="background:#E89C31" onclick="toggle('formation')">FORMACIÓN/LIBRE</button>
-        <button style="background:#A24281" onclick="toggle('spinAll')">GIRAR TODOS</button>
+        <h1>PANEL ADMIN</h1>
+        
+        <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODO</button>
+        <button class="btn-freeze" id="btn-freeze" onclick="toggleState('frozen')">❄️ CONGELAR</button>
+        <button class="btn-formacion" id="btn-form" onclick="toggleState('formation')">📐 FORMACIÓN</button>
+        <button class="btn-girar" id="btn-spin" onclick="toggleState('spinAll')">🌪️ GIRAR TODOS</button>
     </div>
+
     <script>
-        firebase.initializeApp({ apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com" });
-        const db = firebase.database();
-        function toggle(key) { db.ref('gameState/'+key).transaction(v => !v); }
-        function resetAll() { db.ref('avatars').remove(); db.ref('gameState').set({frozen:false, formation:false, spinAll:false}); }
+        const firebaseConfig = { apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356" };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let currentState = { frozen: false, formation: false, spinAll: false };
+
+        database.ref('gameState').on('value', (snap) => {
+            if(snap.exists()) {
+                currentState = { ...currentState, ...snap.val() };
+                document.getElementById('btn-freeze').innerText = currentState.frozen ? "▶️ DESCONGELAR" : "❄️ CONGELAR";
+                document.getElementById('btn-form').innerText = currentState.formation ? "✖️ ROMPER FORMACIÓN" : "📐 FORMACIÓN";
+                document.getElementById('btn-spin').innerText = currentState.spinAll ? "🛑 DETENER GIRO" : "🌪️ GIRAR TODOS";
+            }
+        });
+
+        function limpiarPantalla() {
+            if(confirm("¿Seguro que quieres borrar todos los dibujos?")) {
+                database.ref('avatars').remove();
+                database.ref('gameState').set({ frozen: false, formation: false, spinAll: false });
+            }
+        }
+
+        function toggleState(key) {
+            database.ref('gameState').update({ [key]: !currentState[key] });
+        }
     </script>
 </body>
 </html>
