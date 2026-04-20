@@ -2,29 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Jungle Multiverse - Display V2</title>
+    <title>Jungle Multiverse - Display V3</title>
     <style>
         body { margin: 0; background: #050505; overflow: hidden; }
         canvas { display: block; }
-        #version-tag { position: absolute; top: 10px; left: 10px; color: #444; font-family: monospace; font-size: 12px; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
-    <div id="version-tag">DISPLAY V2.0</div>
     <canvas id="worldCanvas"></canvas>
     
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
-            authDomain: "jungle-multiverse.firebaseapp.com", 
-            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", 
-            projectId: "jungle-multiverse", 
-            storageBucket: "jungle-multiverse.firebasestorage.app", 
-            messagingSenderId: "648498270563", 
-            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356" };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
@@ -38,36 +28,28 @@
 
         class Avatar {
             constructor(data, id, index) {
-                this.id = id;
-                this.paths = data.paths || [];
-                this.name = data.userName || "";
-                this.message = data.message || "";
-                this.messageTime = data.messageTime || 0;
-                this.isSpinning = data.isSpinning || false;
-                this.isStarPower = data.isStarPower || false;
+                this.id = id; this.paths = data.paths || []; this.name = data.userName || "";
+                this.message = data.message || ""; this.messageTime = data.messageTime || 0;
+                this.isSpinning = data.isSpinning || false; this.isStarPower = data.isStarPower || false;
                 
-                // Distribución aleatoria inicial para que no se apilen
-                this.x = (canvas.width / 2) + (Math.random() * 200 - 100); 
-                this.y = (canvas.height / 2) + (Math.random() * 200 - 100);
-                this.rotation = 0;
-                this.collisionTimer = 0;
+                // Entran desde un punto aleatorio
+                this.x = Math.random() * (canvas.width - 200) + 100; 
+                this.y = Math.random() * (canvas.height - 200) + 100;
+                this.rotation = 0; this.collisionTimer = 0;
                 
-                // Velocidad fija garantizada
+                // Velocidad garantizada
                 const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * (Math.random() * 2 + 2); // Mínimo 2px por frame
+                this.vx = Math.cos(angle) * (Math.random() * 2 + 2); 
                 this.vy = Math.sin(angle) * (Math.random() * 2 + 2);
                 this.index = index; 
             }
 
             update() {
                 // 1. Giro
-                if (this.isSpinning || globalState.spinAll) {
-                    this.rotation += 0.05; 
-                } else {
-                    this.rotation += (0 - this.rotation) * 0.1; 
-                }
+                if (this.isSpinning || globalState.spinAll) { this.rotation += 0.1; } 
+                else { this.rotation += (0 - this.rotation) * 0.1; } // Vuelve al centro
 
-                // 2. Movimiento
+                // 2. Movimiento Físico
                 if (globalState.formation) {
                     const cols = Math.max(1, Math.ceil(Math.sqrt(avatars.length)));
                     const w = canvas.width / cols;
@@ -78,12 +60,11 @@
                     this.x += (targetX - this.x) * 0.05;
                     this.y += (targetY - this.y) * 0.05;
                 } else if (!globalState.frozen) {
-                    // Físicas blindadas
                     this.x += this.vx; 
                     this.y += this.vy;
                     
-                    // Margen reducido a 50px para evitar que se atasquen en pantallas pequeñas
-                    const margin = 50; 
+                    // Rebote en bordes (120px de margen visual)
+                    const margin = 120; 
                     if (this.x > canvas.width - margin) { this.x = canvas.width - margin; this.vx *= -1; }
                     if (this.x < margin) { this.x = margin; this.vx *= -1; }
                     if (this.y > canvas.height - margin) { this.y = canvas.height - margin; this.vy *= -1; }
@@ -101,10 +82,9 @@
                 ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 
                 const starColor = `hsl(${(Date.now() / 5) % 360}, 100%, 60%)`;
-                if(this.isStarPower) {
-                    ctx.shadowBlur = 20; ctx.shadowColor = starColor;
-                }
+                if(this.isStarPower) { ctx.shadowBlur = 20; ctx.shadowColor = starColor; }
 
+                // Dibujar Trazos
                 if (this.paths.length > 0) {
                     this.paths.forEach(pathObj => {
                         if(pathObj.points && pathObj.points.length > 0) {
@@ -118,21 +98,17 @@
                 }
                 ctx.shadowBlur = 0; 
 
-                // Texto Nombre
+                // Nombre
                 ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
                 ctx.fillText(this.name.toUpperCase(), 0, 190);
 
-                // Corazón en colisión
+                // Corazón
                 if (this.collisionTimer > 0 && !globalState.formation) {
-                    ctx.font = "50px Arial";
-                    ctx.globalAlpha = Math.min(this.collisionTimer, 1);
-                    ctx.fillText("❤️", 0, -50);
-                    ctx.globalAlpha = 1;
+                    ctx.font = "50px Arial"; ctx.globalAlpha = Math.min(this.collisionTimer, 1);
+                    ctx.fillText("❤️", 0, -50); ctx.globalAlpha = 1;
                 }
 
-                ctx.restore(); 
-                ctx.save();
-                ctx.translate(this.x, this.y);
+                ctx.restore(); ctx.save(); ctx.translate(this.x, this.y);
 
                 // Globo de chat
                 if (this.message !== "" && (Date.now() - this.messageTime) < 6000) {
@@ -140,14 +116,10 @@
                     const textWidth = ctx.measureText(this.message).width;
                     const bWidth = Math.max(100, textWidth + 40);
                     
-                    ctx.fillStyle = "white";
-                    ctx.beginPath();
-                    ctx.roundRect(-bWidth/2, -240, bWidth, 50, 15);
-                    ctx.fill();
+                    ctx.fillStyle = "white"; ctx.beginPath();
+                    ctx.roundRect(-bWidth/2, -240, bWidth, 50, 15); ctx.fill();
                     
-                    ctx.beginPath(); 
-                    ctx.moveTo(0, -190); ctx.lineTo(-15, -200); ctx.lineTo(15, -200); ctx.fill();
-
+                    ctx.beginPath(); ctx.moveTo(0, -190); ctx.lineTo(-15, -200); ctx.lineTo(15, -200); ctx.fill();
                     ctx.fillStyle = "#1a1a1a"; ctx.textAlign = "center";
                     ctx.fillText(this.message, 0, -208);
                 }
@@ -155,8 +127,7 @@
             }
         }
 
-        // --- FIREBASE LISTENERS ---
-        
+        // --- FIREBASE ---
         database.ref('avatars').on('child_added', (snapshot) => {
             avatars.push(new Avatar(snapshot.val(), snapshot.key, avatars.length));
         });
@@ -165,22 +136,15 @@
             const data = snapshot.val();
             const avatar = avatars.find(a => a.id === snapshot.key);
             if(avatar) {
-                avatar.message = data.message || "";
-                avatar.messageTime = data.messageTime || 0;
-                avatar.isSpinning = data.isSpinning || false;
-                avatar.isStarPower = data.isStarPower || false;
+                avatar.message = data.message || ""; avatar.messageTime = data.messageTime || 0;
+                avatar.isSpinning = data.isSpinning || false; avatar.isStarPower = data.isStarPower || false;
             }
         });
 
-        database.ref('avatars').on('value', (snapshot) => {
-            if (!snapshot.exists()) avatars = []; 
-        });
+        database.ref('avatars').on('value', (snapshot) => { if (!snapshot.exists()) avatars = []; });
+        database.ref('gameState').on('value', (snap) => { if(snap.exists()) globalState = snap.val(); });
 
-        database.ref('gameState').on('value', (snap) => {
-            if(snap.exists()) globalState = snap.val();
-        });
-
-        // Loop principal
+        // Loop
         function animate() {
             ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -192,13 +156,12 @@
                 if(!globalState.frozen && !globalState.formation) {
                     for(let j = i + 1; j < avatars.length; j++) {
                         const other = avatars[j];
-                        if (Math.hypot(a.x - other.x, a.y - other.y) < 100) {
-                            a.collisionTimer = 1; other.collisionTimer = 1;
+                        if (Math.hypot(a.x - other.x, a.y - other.y) < 120) {
+                            a.collisionTimer = 1.5; other.collisionTimer = 1.5;
                         }
                     }
                 }
             });
-
             requestAnimationFrame(animate);
         }
         requestAnimationFrame(animate);
