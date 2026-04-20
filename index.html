@@ -3,129 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jungle Multiverse - Crea tu Avatar</title>
+    <title>Jungle Multiverse</title>
     <style>
-        /* Estilos Base y Fondo */
-        body { 
-            margin: 0; 
-            background: #0a0a0a url('fondo.png') no-repeat center center fixed; 
-            background-size: cover; 
-            color: white; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-        }
+        /* Estilos Base */
+        body { margin: 0; background: #0a0a0a url('fondo.png') no-repeat center center fixed; background-size: cover; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
         
         /* UI Glassmorphism */
-        .glass-panel { 
-            background: rgba(20, 20, 20, 0.7); 
-            backdrop-filter: blur(15px); 
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.1); 
-            border-radius: 24px; 
-            padding: 20px; 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            width: 90%; 
-            max-width: 350px; 
-            margin-top: 15px;
-        }
+        .glass-panel { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; width: 90%; max-width: 350px; margin-top: 15px; }
         
-        /* Popup Inicial */
-        #name-popup { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.85); 
-            backdrop-filter: blur(8px); 
-            z-index: 100; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            text-align: center; 
-        }
-
-        #name-input { 
-            padding: 18px; 
-            font-size: 1.3rem; 
-            border-radius: 14px; 
-            border: 2px solid #EC0000; 
-            margin: 25px 0; 
-            width: 80%; 
-            text-align: center; 
-            outline: none; 
-            background: white; 
-            color: #1a1a1a; 
-            font-weight: bold;
-            -webkit-user-select: auto;
-            user-select: auto;
-        }
-
-        .btn-primary { 
-            padding: 16px 45px; 
-            background: #EC0000; 
-            color: white; 
-            border: none; 
-            border-radius: 14px; 
-            font-weight: bold; 
-            font-size: 1.1rem; 
-            cursor: pointer; 
-            box-shadow: 0 4px 15px rgba(236,0,0,0.5); 
-        }
+        /* Popup de Nombre */
+        #name-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #name-input { padding: 18px; font-size: 1.3rem; border-radius: 14px; border: 2px solid #EC0000; margin: 25px 0; width: 80%; text-align: center; outline: none; background: white; color: #1a1a1a; font-weight: bold; -webkit-user-select: auto; user-select: auto; }
+        
+        .btn-primary { padding: 16px 45px; background: #EC0000; color: white; border: none; border-radius: 14px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 15px rgba(236,0,0,0.5); }
 
         /* Herramientas de Dibujo */
         .tools-panel { display: flex; gap: 12px; margin-bottom: 15px; }
         .color-btn { width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: 0.2s; }
         .color-btn.active { border-color: white; transform: scale(1.2); }
 
-        #canvas-container { 
-            position: relative; 
-            width: 100%; 
-            height: 350px; 
-            background: rgba(0,0,0,0.4); 
-            border-radius: 18px; 
-            overflow: hidden; 
-            touch-action: none; 
-        }
+        /* Lienzo y Animación de Vuelo */
+        #canvas-container { position: relative; width: 100%; height: 350px; background: rgba(0,0,0,0.4); border-radius: 18px; overflow: hidden; touch-action: none; transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.5s; }
+        .fly-out { transform: translateY(-120vh) scale(0.3); opacity: 0; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         
-        /* Silueta Guía Fantasmal */
-        .guide { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            pointer-events: none; opacity: 0.4; display: flex; 
-            justify-content: center; align-items: center; transition: opacity 0.4s; 
-        }
-        .guide svg path { stroke-dasharray: 400; stroke-dashoffset: 400; animation: drawGuide 2s forwards ease-in-out; }
-        @keyframes drawGuide { to { stroke-dashoffset: 0; } }
-
+        .guide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.4; display: flex; justify-content: center; align-items: center; transition: opacity 0.4s; }
+        
         .controls { width: 100%; margin-top: 15px; display: grid; grid-template-columns: 1fr 2fr; gap: 12px; }
         .btn-controls { padding: 14px; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 1rem; color: white; }
         
         /* Vista Post-Envío (Interacción) */
-        #souvenir-view { display: none; }
-        .chat-input { 
-            width: calc(100% - 24px); 
-            padding: 14px; 
-            border-radius: 14px; 
-            border: none; 
-            margin-bottom: 12px; 
-            font-size: 1rem; 
-            text-align: center; 
-            background: white; 
-            color: #1a1a1a; 
-        }
+        #interaction-view { display: none; }
+        .chat-input { width: calc(100% - 24px); padding: 14px; border-radius: 14px; border: none; margin-bottom: 12px; font-size: 1rem; text-align: center; background: white; color: #1a1a1a; }
         .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-        .btn-neon { 
-            background: linear-gradient(45deg, #EC0000, #E89C31, #4EB1B3, #A24281); 
-            background-size: 200%; 
-            animation: gradientBG 4s infinite linear; 
-        }
+        .btn-neon { background: linear-gradient(45deg, #EC0000, #E89C31, #4EB1B3, #A24281); background-size: 200%; animation: gradientBG 4s infinite linear; }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
     </style>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
@@ -160,34 +73,26 @@
 
         <div class="controls">
             <button class="btn-controls" style="background: #333;" onclick="clearCanvas()">BORRAR</button>
-            <button class="btn-controls" style="background: #EC0000;" onclick="sendToMultiverse()">¡ENVIAR!</button>
+            <button class="btn-controls" style="background: #EC0000;" onclick="sendDrawing()">¡ENVIAR!</button>
         </div>
     </div>
 
-    <div id="souvenir-view" class="glass-panel">
-        <h3 id="avatar-title" style="color: #4EB1B3; margin: 0 0 15px 0;">¡INTERACTÚA!</h3>
+    <div id="interaction-view" class="glass-panel">
+        <h3 id="avatar-title" style="color: #4EB1B3; margin: 0 0 15px 0;">¡ESTÁS EN PANTALLA!</h3>
         
         <input type="text" id="chat-box" class="chat-input" placeholder="Di algo en pantalla..." maxlength="25">
         <button class="btn-controls" style="background: #4EB1B3; width: 100%; margin-bottom: 20px;" onclick="sendMessage()">ENVIAR MENSAJE</button>
 
         <div class="action-grid">
             <button class="btn-controls" style="background: #E89C31;" id="btn-spin">🔄 GIRAR</button>
-            <button class="btn-controls btn-neon" id="btn-mix" onclick="toggleMixColor()">🌟 ESTRELLA</button>
+            <button class="btn-controls btn-neon" onclick="toggleMixColor()">🌟 ESTRELLA</button>
         </div>
         
-        <button style="background: transparent; border: none; color: #777; margin-top: 25px; text-decoration: underline;" onclick="resetApp()">Hacer otro dibujo</button>
+        <button style="background: transparent; border: none; color: #aaa; margin-top: 25px; text-decoration: underline; cursor: pointer;" onclick="resetApp()">Hacer otro dibujo</button>
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
-            authDomain: "jungle-multiverse.firebaseapp.com", 
-            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", 
-            projectId: "jungle-multiverse", 
-            storageBucket: "jungle-multiverse.firebasestorage.app", 
-            messagingSenderId: "648498270563", 
-            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356" };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
@@ -195,10 +100,7 @@
 
         function saveName() {
             const input = document.getElementById('name-input');
-            if(input.value.trim() === "") {
-                alert("Por favor, ingresa tu apodo para comenzar.");
-                return;
-            }
+            if(input.value.trim() === "") { alert("Ingresa tu apodo para comenzar."); return; }
             userName = input.value.trim();
             document.getElementById('name-popup').style.display = 'none';
         }
@@ -207,7 +109,8 @@
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
         
-        canvas.width = container.clientWidth; canvas.height = container.clientHeight;
+        // Ajustar tamaño del canvas
+        setTimeout(() => { canvas.width = container.clientWidth; canvas.height = container.clientHeight; }, 100);
 
         let drawing = false; let paths = []; let currentPath = []; let currentColor = '#EC0000';
         ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -246,24 +149,21 @@
 
         function clearCanvas() { paths = []; redrawAll(); document.getElementById('drawing-guide').style.opacity = '0.4'; }
 
-        function sendToMultiverse() {
-            if (paths.length === 0) {
-                alert("¡Dibuja algo primero!");
-                return;
-            }
+        function sendDrawing() {
+            if (paths.length === 0) return;
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
 
-            const drawingData = { 
-                paths: paths, userName: userName, timestamp: Date.now(), 
-                message: "", isSpinning: false, isStarPower: false 
-            };
-            
-            myAvatarRef = database.ref('avatars').push();
-            myAvatarRef.set(drawingData).then(() => {
-                document.getElementById('draw-view').style.display = 'none';
-                document.getElementById('souvenir-view').style.display = 'flex';
-                document.getElementById('avatar-title').innerText = "¡HOLA, " + userName.toUpperCase() + "!";
-            });
+            // Efecto de vuelo
+            container.classList.add('fly-out');
+
+            setTimeout(() => {
+                const drawingData = { paths: paths, userName: userName, timestamp: Date.now(), message: "", isSpinning: false, isStarPower: false };
+                myAvatarRef = database.ref('avatars').push();
+                myAvatarRef.set(drawingData).then(() => {
+                    document.getElementById('draw-view').style.display = 'none';
+                    document.getElementById('interaction-view').style.display = 'flex';
+                });
+            }, 600); // Esperar a que termine la animación
         }
 
         function sendMessage() {
@@ -275,17 +175,10 @@
             }
         }
 
+        // Eventos seguros para el giro (sin bloquear la pantalla)
         const btnSpin = document.getElementById('btn-spin');
-        
-        // CORRECCIÓN CRÍTICA DE UX: Prevenir bloqueo de toques globales
-        const startSpin = (e) => { 
-            e.preventDefault(); 
-            if(myAvatarRef) myAvatarRef.update({ isSpinning: true }); 
-        };
-        const stopSpin = (e) => { 
-            // ELIMINADO e.preventDefault() global aquí para que la pantalla detecte toques
-            if(myAvatarRef) myAvatarRef.update({ isSpinning: false }); 
-        };
+        const startSpin = (e) => { e.preventDefault(); if(myAvatarRef) myAvatarRef.update({ isSpinning: true }); };
+        const stopSpin = () => { if(myAvatarRef) myAvatarRef.update({ isSpinning: false }); };
         
         btnSpin.addEventListener('mousedown', startSpin); 
         btnSpin.addEventListener('touchstart', startSpin, { passive: false });
@@ -302,7 +195,8 @@
 
         function resetApp() {
             clearCanvas(); isMixColor = false;
-            document.getElementById('souvenir-view').style.display = 'none';
+            container.classList.remove('fly-out');
+            document.getElementById('interaction-view').style.display = 'none';
             document.getElementById('draw-view').style.display = 'flex';
         }
 
