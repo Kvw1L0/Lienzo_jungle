@@ -14,7 +14,13 @@
     <canvas id="worldCanvas"></canvas>
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
+            apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
+            authDomain: "jungle-multiverse.firebaseapp.com", 
+            databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", 
+            projectId: "jungle-multiverse", 
+            storageBucket: "jungle-multiverse.firebasestorage.app", 
+            messagingSenderId: "648498270563", 
+            appId: "1:648498270563:web:76384ba26c1ca4e38d8356"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -37,43 +43,47 @@
                 this.isSpinning = data.isSpinning || false;
                 this.isStarPower = data.isStarPower || false;
                 
-                this.x = canvas.width / 2; this.y = canvas.height / 2;
+                // Aparecen ligeramente separados del centro para evitar amontonamiento inicial
+                this.x = (canvas.width / 2) + (Math.random() * 100 - 50); 
+                this.y = (canvas.height / 2) + (Math.random() * 100 - 50);
                 this.rotation = 0;
                 this.collisionTimer = 0;
                 
+                // Velocidad aleatoria asegurando que no sea cero
                 const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * (Math.random() * 2 + 1);
-                this.vy = Math.sin(angle) * (Math.random() * 2 + 1);
-                this.index = index; // Para la formación en cuadrícula
+                this.vx = Math.cos(angle) * (Math.random() * 2 + 1.5);
+                this.vy = Math.sin(angle) * (Math.random() * 2 + 1.5);
+                this.index = index; 
             }
 
             update(dt) {
                 // 1. Manejo de Giro
                 if (this.isSpinning || globalState.spinAll) {
-                    this.rotation += 0.1 * dt; // Girar la cabeza
+                    this.rotation += 0.1 * dt; 
                 } else {
-                    // Volver a posición recta suavemente si deja de girar
-                    this.rotation += (0 - this.rotation) * 0.1;
+                    this.rotation += (0 - this.rotation) * 0.1; 
                 }
 
                 // 2. Manejo de Posición (Formación vs Aleatorio)
                 if (globalState.formation) {
-                    // Calcular posición en cuadrícula
-                    const cols = Math.ceil(Math.sqrt(avatars.length));
+                    const cols = Math.max(1, Math.ceil(Math.sqrt(avatars.length)));
                     const w = canvas.width / cols;
                     const h = canvas.height / Math.ceil(avatars.length / cols);
                     const targetX = (this.index % cols) * w + (w/2);
                     const targetY = Math.floor(this.index / cols) * h + (h/2);
                     
-                    // Movimiento suave hacia su puesto
                     this.x += (targetX - this.x) * 0.05;
                     this.y += (targetY - this.y) * 0.05;
                 } else if (!globalState.frozen) {
-                    // Movimiento flotante normal
-                    this.x += this.vx; this.y += this.vy;
-                    const size = 150; 
-                    if (this.x > canvas.width - size || this.x < size) this.vx *= -1;
-                    if (this.y > canvas.height - size || this.y < size) this.vy *= -1;
+                    // Movimiento flotante normal corregido (rebotan sin atascarse)
+                    this.x += this.vx * dt; 
+                    this.y += this.vy * dt;
+                    
+                    const margin = 150; 
+                    if (this.x > canvas.width - margin) { this.x = canvas.width - margin; this.vx *= -1; }
+                    if (this.x < margin) { this.x = margin; this.vx *= -1; }
+                    if (this.y > canvas.height - margin) { this.y = canvas.height - margin; this.vy *= -1; }
+                    if (this.y < margin) { this.y = margin; this.vy *= -1; }
                 }
 
                 if(this.collisionTimer > 0) this.collisionTimer -= dt * 0.05;
@@ -82,11 +92,10 @@
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation); // Aplica el giro
+                ctx.rotate(this.rotation); 
                 
                 ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 
-                // Efecto "Mix Color" (Mario Star)
                 const starColor = `hsl(${(Date.now() / 5) % 360}, 100%, 60%)`;
                 if(this.isStarPower) {
                     ctx.shadowBlur = 20; ctx.shadowColor = starColor;
@@ -97,14 +106,13 @@
                         if(pathObj.points && pathObj.points.length > 0) {
                             ctx.strokeStyle = this.isStarPower ? starColor : (pathObj.color || '#EC0000');
                             ctx.beginPath();
-                            // Centrado
                             ctx.moveTo(pathObj.points[0].x - 150, pathObj.points[0].y - 175);
                             pathObj.points.forEach(p => ctx.lineTo(p.x - 150, p.y - 175));
                             ctx.stroke();
                         }
                     });
                 }
-                ctx.shadowBlur = 0; // Quitar glow para los textos
+                ctx.shadowBlur = 0; 
 
                 // Texto de Nombre
                 ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
@@ -118,11 +126,11 @@
                     ctx.globalAlpha = 1;
                 }
 
-                ctx.restore(); // Restaurar rotación para la burbuja (no debe girar con la cabeza)
+                ctx.restore(); 
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // Burbuja de Chat (Permanece 6 segundos tras ser enviada)
+                // Burbuja de Chat
                 if (this.message !== "" && (Date.now() - this.messageTime) < 6000) {
                     ctx.font = "bold 16px Arial";
                     const textWidth = ctx.measureText(this.message).width;
@@ -133,7 +141,7 @@
                     ctx.roundRect(-bWidth/2, -240, bWidth, 50, 15);
                     ctx.fill();
                     
-                    ctx.beginPath(); // Triangulito
+                    ctx.beginPath(); 
                     ctx.moveTo(0, -190); ctx.lineTo(-15, -200); ctx.lineTo(15, -200); ctx.fill();
 
                     ctx.fillStyle = "#1a1a1a"; ctx.textAlign = "center";
@@ -143,42 +151,50 @@
             }
         }
 
-        // --- FIREBASE LISTENERS ---
-        // Sincronizar Base de Datos Completa (Maneja el Admin Clear y Child_Added)
-        database.ref('avatars').on('value', (snapshot) => {
-            if (!snapshot.exists()) {
-                avatars = []; // El Admin limpió la pantalla
-            } else {
-                const data = snapshot.val();
-                let index = 0;
-                avatars = []; // Reconstruir para mantener sincronía perfecta
-                for (const key in data) {
-                    avatars.push(new Avatar(data[key], key, index));
-                    index++;
-                }
+        // --- FIREBASE LISTENERS CORREGIDOS ---
+        
+        // 1. Agregar solo los nuevos (evita reiniciar todo)
+        database.ref('avatars').on('child_added', (snapshot) => {
+            avatars.push(new Avatar(snapshot.val(), snapshot.key, avatars.length));
+        });
+
+        // 2. Actualizar interacciones de los que ya existen
+        database.ref('avatars').on('child_changed', (snapshot) => {
+            const data = snapshot.val();
+            const avatar = avatars.find(a => a.id === snapshot.key);
+            if(avatar) {
+                avatar.message = data.message || "";
+                avatar.messageTime = data.messageTime || 0;
+                avatar.isSpinning = data.isSpinning || false;
+                avatar.isStarPower = data.isStarPower || false;
             }
         });
 
-        // Escuchar el Estado del Admin
+        // 3. Borrar todo solo si el Admin usa el botón "Borrar Todo"
+        database.ref('avatars').on('value', (snapshot) => {
+            if (!snapshot.exists()) avatars = []; 
+        });
+
+        // 4. Escuchar Panel Admin
         database.ref('gameState').on('value', (snap) => {
             if(snap.exists()) globalState = snap.val();
         });
 
-        // Loop de Animación
+        // Loop de Animación seguro
         let lastTime = performance.now();
         function animate(now) {
-            const dt = (now - lastTime) / 16; // Normalizado
+            let dt = (now - lastTime) / 16; 
+            if (dt > 3) dt = 3; // Previene saltos gigantes si la pestaña queda en segundo plano
             lastTime = now;
             
             ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Actualizar y Dibujar
             avatars.forEach((a, i) => {
                 a.update(dt);
                 a.draw();
 
-                // Detección de Colisión para Corazones (Solo si no están quietos en formación)
+                // Detección de Colisión
                 if(!globalState.frozen && !globalState.formation) {
                     for(let j = i + 1; j < avatars.length; j++) {
                         const other = avatars[j];
