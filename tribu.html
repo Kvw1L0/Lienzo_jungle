@@ -2,16 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Jungle Multiverse - Display</title>
+    <title>Jungle Multiverse - Display V2</title>
     <style>
         body { margin: 0; background: #050505; overflow: hidden; }
         canvas { display: block; }
+        #version-tag { position: absolute; top: 10px; left: 10px; color: #444; font-family: monospace; font-size: 12px; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
+    <div id="version-tag">DISPLAY V2.0</div>
     <canvas id="worldCanvas"></canvas>
+    
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", 
@@ -43,28 +46,28 @@
                 this.isSpinning = data.isSpinning || false;
                 this.isStarPower = data.isStarPower || false;
                 
-                // Aparecen ligeramente separados del centro para evitar amontonamiento inicial
-                this.x = (canvas.width / 2) + (Math.random() * 100 - 50); 
-                this.y = (canvas.height / 2) + (Math.random() * 100 - 50);
+                // Distribución aleatoria inicial para que no se apilen
+                this.x = (canvas.width / 2) + (Math.random() * 200 - 100); 
+                this.y = (canvas.height / 2) + (Math.random() * 200 - 100);
                 this.rotation = 0;
                 this.collisionTimer = 0;
                 
-                // Velocidad aleatoria asegurando que no sea cero
+                // Velocidad fija garantizada
                 const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * (Math.random() * 2 + 1.5);
-                this.vy = Math.sin(angle) * (Math.random() * 2 + 1.5);
+                this.vx = Math.cos(angle) * (Math.random() * 2 + 2); // Mínimo 2px por frame
+                this.vy = Math.sin(angle) * (Math.random() * 2 + 2);
                 this.index = index; 
             }
 
-            update(dt) {
-                // 1. Manejo de Giro
+            update() {
+                // 1. Giro
                 if (this.isSpinning || globalState.spinAll) {
-                    this.rotation += 0.1 * dt; 
+                    this.rotation += 0.05; 
                 } else {
                     this.rotation += (0 - this.rotation) * 0.1; 
                 }
 
-                // 2. Manejo de Posición (Formación vs Aleatorio)
+                // 2. Movimiento
                 if (globalState.formation) {
                     const cols = Math.max(1, Math.ceil(Math.sqrt(avatars.length)));
                     const w = canvas.width / cols;
@@ -75,18 +78,19 @@
                     this.x += (targetX - this.x) * 0.05;
                     this.y += (targetY - this.y) * 0.05;
                 } else if (!globalState.frozen) {
-                    // Movimiento flotante normal corregido (rebotan sin atascarse)
-                    this.x += this.vx * dt; 
-                    this.y += this.vy * dt;
+                    // Físicas blindadas
+                    this.x += this.vx; 
+                    this.y += this.vy;
                     
-                    const margin = 150; 
+                    // Margen reducido a 50px para evitar que se atasquen en pantallas pequeñas
+                    const margin = 50; 
                     if (this.x > canvas.width - margin) { this.x = canvas.width - margin; this.vx *= -1; }
                     if (this.x < margin) { this.x = margin; this.vx *= -1; }
                     if (this.y > canvas.height - margin) { this.y = canvas.height - margin; this.vy *= -1; }
                     if (this.y < margin) { this.y = margin; this.vy *= -1; }
                 }
 
-                if(this.collisionTimer > 0) this.collisionTimer -= dt * 0.05;
+                if(this.collisionTimer > 0) this.collisionTimer -= 0.02;
             }
 
             draw() {
@@ -114,11 +118,11 @@
                 }
                 ctx.shadowBlur = 0; 
 
-                // Texto de Nombre
+                // Texto Nombre
                 ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
                 ctx.fillText(this.name.toUpperCase(), 0, 190);
 
-                // Colisión: Corazón
+                // Corazón en colisión
                 if (this.collisionTimer > 0 && !globalState.formation) {
                     ctx.font = "50px Arial";
                     ctx.globalAlpha = Math.min(this.collisionTimer, 1);
@@ -130,7 +134,7 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // Burbuja de Chat
+                // Globo de chat
                 if (this.message !== "" && (Date.now() - this.messageTime) < 6000) {
                     ctx.font = "bold 16px Arial";
                     const textWidth = ctx.measureText(this.message).width;
@@ -151,14 +155,12 @@
             }
         }
 
-        // --- FIREBASE LISTENERS CORREGIDOS ---
+        // --- FIREBASE LISTENERS ---
         
-        // 1. Agregar solo los nuevos (evita reiniciar todo)
         database.ref('avatars').on('child_added', (snapshot) => {
             avatars.push(new Avatar(snapshot.val(), snapshot.key, avatars.length));
         });
 
-        // 2. Actualizar interacciones de los que ya existen
         database.ref('avatars').on('child_changed', (snapshot) => {
             const data = snapshot.val();
             const avatar = avatars.find(a => a.id === snapshot.key);
@@ -170,36 +172,28 @@
             }
         });
 
-        // 3. Borrar todo solo si el Admin usa el botón "Borrar Todo"
         database.ref('avatars').on('value', (snapshot) => {
             if (!snapshot.exists()) avatars = []; 
         });
 
-        // 4. Escuchar Panel Admin
         database.ref('gameState').on('value', (snap) => {
             if(snap.exists()) globalState = snap.val();
         });
 
-        // Loop de Animación seguro
-        let lastTime = performance.now();
-        function animate(now) {
-            let dt = (now - lastTime) / 16; 
-            if (dt > 3) dt = 3; // Previene saltos gigantes si la pestaña queda en segundo plano
-            lastTime = now;
-            
+        // Loop principal
+        function animate() {
             ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             avatars.forEach((a, i) => {
-                a.update(dt);
+                a.update();
                 a.draw();
 
-                // Detección de Colisión
                 if(!globalState.frozen && !globalState.formation) {
                     for(let j = i + 1; j < avatars.length; j++) {
                         const other = avatars[j];
                         if (Math.hypot(a.x - other.x, a.y - other.y) < 100) {
-                            a.collisionTimer = 2; other.collisionTimer = 2;
+                            a.collisionTimer = 1; other.collisionTimer = 1;
                         }
                     }
                 }
