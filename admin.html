@@ -3,30 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jungle - Admin Panel</title>
+    <title>Jungle - Master Admin</title>
     <style>
-        body { margin: 0; background: #0a0a0a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .panel { background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); text-align: center; width: 90%; max-width: 400px; }
-        h1 { color: #EC0000; margin-top: 0; margin-bottom: 25px; }
-        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.95); }
-        
-        .btn-clear { background: #EC0000; color: white; }
-        .btn-freeze { background: #4EB1B3; color: white; }
-        .btn-formacion { background: #E89C31; color: white; }
-        .btn-girar { background: #A24281; color: white; }
+        body { margin: 0; background: #0a0a0a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 450px; }
+        h2 { color: #EC0000; text-align: center; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        button { padding: 12px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; background: #333; color: white; }
+        button.active { background: #EC0000; }
+        select { width: 100%; padding: 12px; border-radius: 10px; margin-bottom: 10px; background: white; color: black; font-weight: bold; }
+        .btn-zoom { background: #4EB1B3; width: 100%; color: white; font-size: 1.1rem; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="panel">
-        <h1>PANEL ADMIN</h1>
+        <h2>JUNGLE CONTROL MASTER</h2>
         
-        <button class="btn-clear" onclick="limpiarPantalla()">🔥 BORRAR TODO</button>
-        <button class="btn-freeze" id="btn-freeze" onclick="toggleState('frozen')">❄️ CONGELAR</button>
-        <button class="btn-formacion" id="btn-form" onclick="toggleState('formation')">📐 FORMACIÓN</button>
-        <button class="btn-girar" id="btn-spin" onclick="toggleState('spinAll')">🌪️ GIRAR TODOS</button>
+        <div class="grid">
+            <button id="frozen" onclick="toggle('frozen')">CONGELAR</button>
+            <button id="formation" onclick="toggle('formation')">FORMACIÓN</button>
+            <button id="shiver" onclick="toggle('shiver')">TIRITAR</button>
+            <button id="earthRotation" onclick="toggle('earthRotation')">ROTACIÓN Y</button>
+            <button id="parade" onclick="toggle('parade')">DESFILE</button>
+            <button id="spinAll" onclick="toggle('spinAll')">GIRAR TODO</button>
+        </div>
+
+        <hr style="opacity: 0.2; margin: 20px 0;">
+
+        <p style="text-align:center; font-size: 0.9rem;">SELECCIONAR PERSONAJE PARA ZOOM</p>
+        <select id="user-list">
+            <option value="">-- Nadie seleccionado --</option>
+        </select>
+        <button class="btn-zoom" onclick="applyZoom()">APLICAR ZOOM / SPOTLIGHT</button>
+
+        <button style="background:transparent; color:#ff4444; margin-top:30px; width:100%;" onclick="resetAll()">🔥 BORRAR TODO</button>
     </div>
 
     <script>
@@ -34,27 +46,41 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        let currentState = { frozen: false, formation: false, spinAll: false };
+        let currentState = {};
 
+        // Escuchar estados globales
         database.ref('gameState').on('value', (snap) => {
+            currentState = snap.val() || {};
+            document.querySelectorAll('.grid button').forEach(btn => {
+                btn.className = currentState[btn.id] ? 'active' : '';
+            });
+        });
+
+        // Llenar dropdown de nombres
+        database.ref('avatars').on('value', (snap) => {
+            const select = document.getElementById('user-list');
+            const currentZoomId = currentState.zoomTargetId;
+            select.innerHTML = '<option value="">-- Quitar Zoom --</option>';
             if(snap.exists()) {
-                currentState = { ...currentState, ...snap.val() };
-                document.getElementById('btn-freeze').innerText = currentState.frozen ? "▶️ DESCONGELAR" : "❄️ CONGELAR";
-                document.getElementById('btn-form').innerText = currentState.formation ? "✖️ ROMPER FORMACIÓN" : "📐 FORMACIÓN";
-                document.getElementById('btn-spin').innerText = currentState.spinAll ? "🛑 DETENER GIRO" : "🌪️ GIRAR TODOS";
+                snap.forEach(child => {
+                    const data = child.val();
+                    const option = document.createElement('option');
+                    option.value = child.key;
+                    option.innerText = data.userName.toUpperCase();
+                    if(child.key === currentZoomId) option.selected = true;
+                    select.appendChild(option);
+                });
             }
         });
 
-        function limpiarPantalla() {
-            if(confirm("¿Seguro que quieres borrar todos los dibujos?")) {
-                database.ref('avatars').remove();
-                database.ref('gameState').set({ frozen: false, formation: false, spinAll: false });
-            }
+        function toggle(key) { database.ref('gameState').update({ [key]: !currentState[key] }); }
+        
+        function applyZoom() {
+            const val = document.getElementById('user-list').value;
+            database.ref('gameState').update({ zoomTargetId: val || null });
         }
 
-        function toggleState(key) {
-            database.ref('gameState').update({ [key]: !currentState[key] });
-        }
+        function resetAll() { if(confirm("¿Borrar todo?")) { database.ref('avatars').remove(); database.ref('gameState').set({}); } }
     </script>
 </body>
 </html>
