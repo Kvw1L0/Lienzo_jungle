@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Jungle Multiverse - Display V3</title>
+    <title>Jungle Multiverse - Display V4</title>
     <style>
         body { margin: 0; background: #050505; overflow: hidden; }
         canvas { display: block; }
@@ -12,7 +12,6 @@
 </head>
 <body>
     <canvas id="worldCanvas"></canvas>
-    
     <script>
         const firebaseConfig = { apiKey: "AIzaSyCC_TF76FJatTPEMjZTzC9eiStnsrDd1qc", authDomain: "jungle-multiverse.firebaseapp.com", databaseURL: "https://jungle-multiverse-default-rtdb.firebaseio.com", projectId: "jungle-multiverse", storageBucket: "jungle-multiverse.firebasestorage.app", messagingSenderId: "648498270563", appId: "1:648498270563:web:76384ba26c1ca4e38d8356" };
         firebase.initializeApp(firebaseConfig);
@@ -21,7 +20,7 @@
         const canvas = document.getElementById('worldCanvas');
         const ctx = canvas.getContext('2d');
         let avatars = [];
-        let globalState = { frozen: false, formation: false, spinAll: false };
+        let globalState = { frozen: false, formation: false, spinAll: false, shiver: false, earthRotation: false, parade: false, zoomTargetId: null };
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
@@ -32,136 +31,111 @@
                 this.message = data.message || ""; this.messageTime = data.messageTime || 0;
                 this.isSpinning = data.isSpinning || false; this.isStarPower = data.isStarPower || false;
                 
-                // Entran desde un punto aleatorio
-                this.x = Math.random() * (canvas.width - 200) + 100; 
-                this.y = Math.random() * (canvas.height - 200) + 100;
-                this.rotation = 0; this.collisionTimer = 0;
-                
-                // Velocidad garantizada
-                const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle) * (Math.random() * 2 + 2); 
-                this.vy = Math.sin(angle) * (Math.random() * 2 + 2);
-                this.index = index; 
+                this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 4; this.vy = (Math.random() - 0.5) * 4;
+                this.rotation = 0; this.yRotationAngle = 0; this.index = index;
+
+                // TÉCNICA DE RASTERIZACIÓN: Dibujamos en un canvas invisible una sola vez
+                this.offscreen = document.createElement('canvas');
+                this.offscreen.width = 300; this.offscreen.height = 350;
+                this.renderToBuffer();
             }
 
-            update() {
-                // 1. Giro
-                if (this.isSpinning || globalState.spinAll) { this.rotation += 0.1; } 
-                else { this.rotation += (0 - this.rotation) * 0.1; } // Vuelve al centro
+            renderToBuffer() {
+                const bCtx = this.offscreen.getContext('2d');
+                bCtx.lineWidth = 6; bCtx.lineCap = 'round'; bCtx.lineJoin = 'round';
+                this.paths.forEach(path => {
+                    bCtx.strokeStyle = path.color || '#EC0000';
+                    bCtx.beginPath();
+                    if(path.points.length > 0) {
+                        bCtx.moveTo(path.points[0].x, path.points[0].y);
+                        path.points.forEach(p => bCtx.lineTo(p.x, p.y));
+                    }
+                    bCtx.stroke();
+                });
+            }
 
-                // 2. Movimiento Físico
-                if (globalState.formation) {
-                    const cols = Math.max(1, Math.ceil(Math.sqrt(avatars.length)));
-                    const w = canvas.width / cols;
-                    const h = canvas.height / Math.ceil(avatars.length / cols);
-                    const targetX = (this.index % cols) * w + (w/2);
-                    const targetY = Math.floor(this.index / cols) * h + (h/2);
-                    
-                    this.x += (targetX - this.x) * 0.05;
-                    this.y += (targetY - this.y) * 0.05;
-                } else if (!globalState.frozen) {
-                    this.x += this.vx; 
-                    this.y += this.vy;
-                    
-                    // Rebote en bordes (120px de margen visual)
-                    const margin = 120; 
-                    if (this.x > canvas.width - margin) { this.x = canvas.width - margin; this.vx *= -1; }
-                    if (this.x < margin) { this.x = margin; this.vx *= -1; }
-                    if (this.y > canvas.height - margin) { this.y = canvas.height - margin; this.vy *= -1; }
-                    if (this.y < margin) { this.y = margin; this.vy *= -1; }
+            update(dt) {
+                if (globalState.zoomTargetId === this.id) {
+                    this.x += (canvas.width / 2 - this.x) * 0.1;
+                    this.y += (canvas.height / 2 - this.y) * 0.1;
+                    return;
                 }
 
-                if(this.collisionTimer > 0) this.collisionTimer -= 0.02;
+                if (globalState.parade) {
+                    const rowHeight = canvas.height / 4;
+                    const row = this.index % 4;
+                    this.y += (row * rowHeight + rowHeight/2 - this.y) * 0.05;
+                    this.x += (2 + row); // Efecto carrusel a distintas velocidades
+                    if (this.x > canvas.width + 150) this.x = -150;
+                } else if (globalState.formation) {
+                    let cols = Math.ceil(Math.sqrt(avatars.length));
+                    let tx = (this.index % cols) * (canvas.width/cols) + (canvas.width/cols/2);
+                    let ty = Math.floor(this.index/cols) * (canvas.height/cols) + (canvas.height/cols/2);
+                    this.x += (tx - this.x) * 0.1; this.y += (ty - this.y) * 0.1;
+                } else if (!globalState.frozen) {
+                    this.x += this.vx; this.y += this.vy;
+                    if (this.x < 50 || this.x > canvas.width - 50) this.vx *= -1;
+                    if (this.y < 50 || this.y > canvas.height - 50) this.vy *= -1;
+                }
+
+                if(globalState.earthRotation) this.yRotationAngle += 0.05;
+                if(this.isSpinning || globalState.spinAll) this.rotation += 0.1;
             }
 
             draw() {
+                let drawX = this.x; let drawY = this.y;
+                if(globalState.shiver) {
+                    drawX += (Math.random() - 0.5) * 10;
+                    drawY += (Math.random() - 0.5) * 10;
+                }
+
                 ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation); 
+                ctx.translate(drawX, drawY);
                 
-                ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                // Efecto Zoom
+                if(globalState.zoomTargetId === this.id) ctx.scale(2.5, 2.5);
                 
+                // Rotación eje Y (Tipo Tierra)
+                if(globalState.earthRotation) ctx.scale(Math.cos(this.yRotationAngle), 1);
+                
+                ctx.rotate(this.rotation);
+
+                // Dibujar la imagen rasterizada (Alto rendimiento)
                 const starColor = `hsl(${(Date.now() / 5) % 360}, 100%, 60%)`;
                 if(this.isStarPower) { ctx.shadowBlur = 20; ctx.shadowColor = starColor; }
-
-                // Dibujar Trazos
-                if (this.paths.length > 0) {
-                    this.paths.forEach(pathObj => {
-                        if(pathObj.points && pathObj.points.length > 0) {
-                            ctx.strokeStyle = this.isStarPower ? starColor : (pathObj.color || '#EC0000');
-                            ctx.beginPath();
-                            ctx.moveTo(pathObj.points[0].x - 150, pathObj.points[0].y - 175);
-                            pathObj.points.forEach(p => ctx.lineTo(p.x - 150, p.y - 175));
-                            ctx.stroke();
-                        }
-                    });
-                }
-                ctx.shadowBlur = 0; 
+                ctx.drawImage(this.offscreen, -150, -175);
+                ctx.shadowBlur = 0;
 
                 // Nombre
-                ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
+                ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center";
                 ctx.fillText(this.name.toUpperCase(), 0, 190);
 
-                // Corazón
-                if (this.collisionTimer > 0 && !globalState.formation) {
-                    ctx.font = "50px Arial"; ctx.globalAlpha = Math.min(this.collisionTimer, 1);
-                    ctx.fillText("❤️", 0, -50); ctx.globalAlpha = 1;
-                }
-
-                ctx.restore(); ctx.save(); ctx.translate(this.x, this.y);
-
-                // Globo de chat
-                if (this.message !== "" && (Date.now() - this.messageTime) < 6000) {
-                    ctx.font = "bold 16px Arial";
-                    const textWidth = ctx.measureText(this.message).width;
-                    const bWidth = Math.max(100, textWidth + 40);
-                    
-                    ctx.fillStyle = "white"; ctx.beginPath();
-                    ctx.roundRect(-bWidth/2, -240, bWidth, 50, 15); ctx.fill();
-                    
-                    ctx.beginPath(); ctx.moveTo(0, -190); ctx.lineTo(-15, -200); ctx.lineTo(15, -200); ctx.fill();
-                    ctx.fillStyle = "#1a1a1a"; ctx.textAlign = "center";
-                    ctx.fillText(this.message, 0, -208);
-                }
                 ctx.restore();
+                
+                // Chat (No rota ni escala con el cuerpo)
+                if (this.message !== "" && (Date.now() - this.messageTime) < 6000) {
+                    ctx.save();
+                    ctx.translate(drawX, drawY);
+                    ctx.fillStyle = "white"; ctx.beginPath(); ctx.roundRect(-60, -230, 120, 40, 10); ctx.fill();
+                    ctx.fillStyle = "black"; ctx.font = "14px Arial"; ctx.textAlign = "center";
+                    ctx.fillText(this.message, 0, -205);
+                    ctx.restore();
+                }
             }
         }
 
-        // --- FIREBASE ---
-        database.ref('avatars').on('child_added', (snapshot) => {
-            avatars.push(new Avatar(snapshot.val(), snapshot.key, avatars.length));
+        database.ref('avatars').on('child_added', (snap) => avatars.push(new Avatar(snap.val(), snap.key, avatars.length)));
+        database.ref('avatars').on('child_changed', (snap) => {
+            const a = avatars.find(i => i.id === snap.key);
+            if(a) { a.message = snap.val().message; a.messageTime = snap.val().messageTime; a.isSpinning = snap.val().isSpinning; a.isStarPower = snap.val().isStarPower; }
         });
-
-        database.ref('avatars').on('child_changed', (snapshot) => {
-            const data = snapshot.val();
-            const avatar = avatars.find(a => a.id === snapshot.key);
-            if(avatar) {
-                avatar.message = data.message || ""; avatar.messageTime = data.messageTime || 0;
-                avatar.isSpinning = data.isSpinning || false; avatar.isStarPower = data.isStarPower || false;
-            }
-        });
-
-        database.ref('avatars').on('value', (snapshot) => { if (!snapshot.exists()) avatars = []; });
+        database.ref('avatars').on('value', (snap) => { if(!snap.exists()) avatars = []; });
         database.ref('gameState').on('value', (snap) => { if(snap.exists()) globalState = snap.val(); });
 
-        // Loop
         function animate() {
-            ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            avatars.forEach((a, i) => {
-                a.update();
-                a.draw();
-
-                if(!globalState.frozen && !globalState.formation) {
-                    for(let j = i + 1; j < avatars.length; j++) {
-                        const other = avatars[j];
-                        if (Math.hypot(a.x - other.x, a.y - other.y) < 120) {
-                            a.collisionTimer = 1.5; other.collisionTimer = 1.5;
-                        }
-                    }
-                }
-            });
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            avatars.forEach(a => { a.update(); a.draw(); });
             requestAnimationFrame(animate);
         }
         requestAnimationFrame(animate);
